@@ -2281,7 +2281,11 @@
   }
   .login-subtitle {
     font-size: 12px; color: var(--ink-light); text-align: center;
-    letter-spacing: 0.1em; margin-bottom: 20px;
+    letter-spacing: 0.1em; margin-bottom: 4px;
+  }
+  .login-bonus {
+    font-size: 12px; color: #3a8c5d; text-align: center;
+    letter-spacing: 0.05em; margin-bottom: 16px;
   }
   .login-field {
     display: flex; flex-direction: column; gap: 4px;
@@ -2456,7 +2460,7 @@
   <header class="header" id="main-header">
     <div class="header-left">
         <div class="header-title-wrap" id="header-title-wrap">
-          <div class="header-title-main">成知</div>
+          <div class="header-title-main" id="header-title-main">成知</div>
           <div class="header-title-sub">CHENG ZHI <span class="level-badge" id="level-display" onclick="toggleLevelPanel(event)">V1</span></div>
         </div>
       <div class="header-yueli" id="header-yueli-btn" onclick="playCardTapSound();toggleYueliPanel(event)">
@@ -3578,7 +3582,8 @@ function savePlan(plan) {
 
 // ── 每日学习记录（今日新学/复习数量） ──
 function getTodayKey() {
-  const d = new Date(); return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
 /* ═══ 成知系统 ═══
@@ -3652,8 +3657,13 @@ function renderWeekCheckin() {
   const data = loadYueli();
   const wk = getWeekKey();
 
-  // 如果已是新的一周，weekDays 应视为空
-  const weekDays = (data.weekKey === wk) ? (data.weekDays || []) : [];
+  // 跨周检测：如果 weekKey 不是本周，持久化重置 weekDays
+  if (data.weekKey !== wk) {
+    data.weekKey = wk;
+    data.weekDays = [];
+    saveYueli(data);
+  }
+  const weekDays = data.weekDays || [];
 
   // 获取本周周一日期（Date 对象）
   const now = new Date();
@@ -3667,7 +3677,7 @@ function renderWeekCheckin() {
 
   // 判断本周是否有连续两天缺签（仅对"过去"的日子判断）
   // 当天及未来不算缺签
-  function dateKey(d) { return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; }
+  function dateKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
   const todayKey = getTodayKey();
 
   // 统计周一到昨天的状态
@@ -6321,6 +6331,7 @@ function renderEbbPreview(){
   <div class="login-dialog">
     <div class="login-title" id="login-form-title">登录成知</div>
     <div class="login-subtitle" id="login-subtitle">登录后可跨设备同步学习进度</div>
+    <div class="login-bonus" id="login-bonus">首次登录赠送 100 成知</div>
     <form id="login-form" onsubmit="return false">
       <div class="login-field">
         <label>邮箱</label>
@@ -6359,6 +6370,7 @@ function renderEbbPreview(){
   var loginSkipBtn = document.getElementById('login-skip-btn');
   var loginFormTitle = document.getElementById('login-form-title');
   var loginSubtitle = document.getElementById('login-subtitle');
+  var loginBonus = document.getElementById('login-bonus');
   var headerTitleWrap = document.getElementById('header-title-wrap');
   var profileMask = document.getElementById('profile-mask');
   var profilePanel = document.getElementById('profile-panel');
@@ -6391,11 +6403,13 @@ function renderEbbPreview(){
     if (isLoginMode) {
       loginFormTitle.textContent = '登录成知';
       loginSubtitle.textContent = '登录后可跨设备同步学习进度';
+      loginBonus.textContent = '首次登录赠送 100 成知';
       loginSubmitBtn.textContent = '登录';
       loginToggleBtn.textContent = '还没有账号？去注册';
     } else {
       loginFormTitle.textContent = '注册成知';
       loginSubtitle.textContent = '注册后云端保存学习数据';
+      loginBonus.textContent = '首次注册赠送 100 成知';
       loginSubmitBtn.textContent = '注册';
       loginToggleBtn.textContent = '已有账号？去登录';
     }
@@ -6466,11 +6480,14 @@ function renderEbbPreview(){
     } catch(e) {}
     currentUser = user;
 
+    var titleMain = document.getElementById('header-title-main');
+
     if (user) {
-      // 登录后仍然保持 title 可点击，点击打开资料面板
+      if (titleMain) titleMain.textContent = '成知';
       if (headerTitleWrap) headerTitleWrap.classList.add('login-trigger');
       if (profileEmail) profileEmail.textContent = user.email || '';
     } else {
+      if (titleMain) titleMain.textContent = '登录';
       if (headerTitleWrap) headerTitleWrap.classList.add('login-trigger');
     }
   }
