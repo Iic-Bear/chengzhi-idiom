@@ -1,0 +1,52 @@
+{
+  "name": "成知·成语卡",
+  "appid": "__UNI__A1B2C3D4",
+  "description": "每日一张成语卡片，轻松学成语",
+  "versionName": "1.0.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "app-plus": {
+    "usingComponents": true,
+    "splashscreen": {
+      "alwaysShowBeforeRender": true,
+      "autoclose": true,
+      "waiting": true
+    },
+    "modules": {},
+    "distribute": {
+      "android": {
+        "permissions": [
+          "<uses-permission android:name=\"android.permission.INTERNET\"/>"
+        ],
+        "targetApi": 29
+      },
+      "ios": {
+        "dSYMs": false
+      },
+      "sdkConfigs": {}
+    }
+  },
+  "quickapp": {},
+  "mp-weixin": {
+    "appid": "",
+    "setting": {
+      "urlCheck": false
+    },
+    "usingComponents": true
+  },
+  "h5": {
+    "title": "成知·成语卡",
+    "template": "",
+    "router": {
+      "mode": "hash",
+      "base": "./"
+    },
+    "async": {
+      "loading": "AsyncLoading",
+      "error": "AsyncError",
+      "delay": 200,
+      "timeout": 60000
+    }
+  },
+  "locale": "zh-Hans"
+}

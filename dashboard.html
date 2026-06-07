@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>成知·数据看板</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+<style>
+  :root {
+    --manila: #F2E8D5;
+    --ink: #1A1209;
+    --accent: #C45A3C;
+    --green: #4A7C59;
+    --blue: #3A6B8C;
+    --card-bg: #FFFBF2;
+    --shadow: 4px 4px 0px #1A1209;
+    --radius: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--manila);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+
+  /* ---------- Header ---------- */
+  .header {
+    background: var(--ink);
+    color: #F2E8D5;
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .header h1 {
+    font-family: 'Noto Serif SC', 'SimSun', serif;
+    font-size: 24px;
+    letter-spacing: 4px;
+  }
+  .header-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .header .status-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .header .status-dot.connected { background: #7DDF90; }
+  .header .status-dot.disconnected { background: #DF7D7D; }
+  .header .status-text { font-size: 13px; opacity: 0.8; }
+
+  .btn {
+    font-family: inherit;
+    font-size: 14px;
+    padding: 8px 20px;
+    border: 2px solid var(--ink);
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.15s;
+  }
+  .btn:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0px var(--ink); }
+  .btn:active { transform: translate(0, 0); box-shadow: none; }
+  .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn-outline { background: transparent; color: #F2E8D5; border-color: rgba(242,232,213,0.4); }
+  .btn-outline:hover { background: rgba(242,232,213,0.1); }
+  .btn-export { background: var(--green); color: #fff; border-color: var(--green); }
+  .btn-export:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0px rgba(0,0,0,0.4); }
+  .btn-export:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+
+  /* ---------- Setup Overlay ---------- */
+  .setup-overlay {
+    position: fixed; inset: 0;
+    background: rgba(26, 18, 9, 0.6);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000;
+  }
+  .setup-card {
+    background: var(--card-bg);
+    border: 3px solid var(--ink);
+    border-radius: var(--radius);
+    box-shadow: 8px 8px 0px var(--ink);
+    padding: 40px;
+    max-width: 480px;
+    width: 90%;
+  }
+  .setup-card h2 { font-family: 'Noto Serif SC', serif; font-size: 20px; margin-bottom: 12px; }
+  .setup-card p { font-size: 14px; line-height: 1.7; margin-bottom: 16px; color: #5A4A3A; }
+  .setup-card .warning {
+    background: #FFF3CD;
+    border-left: 4px solid #E6A817;
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+  .setup-card label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .setup-card input {
+    width: 100%; padding: 10px 14px;
+    border: 2px solid #C4B5A0;
+    border-radius: 8px;
+    font-family: monospace;
+    font-size: 13px;
+    background: #fff;
+    margin-bottom: 20px;
+  }
+  .setup-card input:focus { outline: none; border-color: var(--ink); }
+
+  /* ---------- Main Content ---------- */
+  .main { padding: 32px; max-width: 1200px; margin: 0 auto; }
+  .hidden { display: none !important; }
+
+  /* ---------- Stat Cards ---------- */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 32px;
+  }
+  .stat-card {
+    background: var(--card-bg);
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px;
+    text-align: center;
+  }
+  .stat-card .stat-value {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 42px;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .stat-card .stat-label {
+    font-size: 13px;
+    color: #7A6A5A;
+    margin-top: 6px;
+  }
+  .stat-card.accent .stat-value { color: var(--accent); }
+  .stat-card.green .stat-value { color: var(--green); }
+  .stat-card.blue .stat-value { color: var(--blue); }
+
+  /* ---------- Charts ---------- */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+  .chart-card {
+    background: var(--card-bg);
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px;
+  }
+  .chart-card h3 {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 16px;
+    margin-bottom: 16px;
+    letter-spacing: 1px;
+  }
+  .chart-wrap { position: relative; width: 100%; }
+  .chart-wrap canvas { width: 100% !important; }
+
+  /* ---------- Loading ---------- */
+  .loading-card {
+    background: var(--card-bg);
+    border: 2px dashed #C4B5A0;
+    border-radius: var(--radius);
+    padding: 48px;
+    text-align: center;
+    color: #7A6A5A;
+  }
+  .spinner {
+    display: inline-block;
+    width: 32px; height: 32px;
+    border: 3px solid #C4B5A0;
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    margin-bottom: 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---------- User Table ---------- */
+  .table-card {
+    background: var(--card-bg);
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px;
+    margin-bottom: 32px;
+    overflow-x: auto;
+  }
+  .table-card h3 {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 16px;
+    margin-bottom: 16px;
+    letter-spacing: 1px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 2px solid var(--ink);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #E8DDD0;
+    white-space: nowrap;
+  }
+  tr:last-child td { border-bottom: none; }
+  .user-id-cell {
+    font-family: monospace;
+    font-size: 11px;
+    color: #7A6A5A;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .progress-bar-wrap {
+    width: 80px;
+    height: 6px;
+    background: #E8DDD0;
+    border-radius: 3px;
+    overflow: hidden;
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 8px;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--green);
+    border-radius: 3px;
+  }
+
+  /* ---------- Empty State ---------- */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #7A6A5A;
+  }
+  .empty-state .empty-icon { font-size: 48px; margin-bottom: 16px; }
+  .empty-state p { font-size: 14px; line-height: 1.8; }
+
+  /* ---------- Refresh bar ---------- */
+  .refresh-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .refresh-bar .last-update {
+    font-size: 12px;
+    color: #7A6A5A;
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <h1>成知 · 数据看板</h1>
+  <div class="header-actions">
+    <span class="status-text">
+      <span class="status-dot disconnected" id="statusDot"></span>
+      <span id="statusLabel">未连接</span>
+    </span>
+    <button class="btn btn-outline" onclick="refreshDashboard()" id="btnRefresh" disabled>刷新数据</button>
+    <button class="btn btn-export" onclick="exportBackup()" id="btnExport" disabled>💾 导出备份</button>
+    <button class="btn btn-outline" onclick="resetKey()">重置密钥</button>
+  </div>
+</div>
+
+<!-- Setup Overlay -->
+<div class="setup-overlay hidden" id="setupOverlay">
+  <div class="setup-card">
+    <h2>🔐 输入 Supabase 管理员密钥</h2>
+    <p>数据看板需要 <strong>service_role key</strong> 来查看所有用户数据。<br>
+    获取方式：Supabase Dashboard → Project Settings → API → <code>service_role secret</code></p>
+    <div class="warning">
+      ⚠️ <strong>安全提醒：</strong>此密钥拥有数据库全部权限，仅保存在你本地浏览器中，<strong>切勿部署到线上或分享给他人。</strong>
+    </div>
+    <label>Service Role Key</label>
+    <input type="password" id="keyInput" placeholder="eyJhbGciOi...（以 eyJ 开头）">
+    <button class="btn btn-primary" onclick="saveKey()" style="width:100%">连接看板</button>
+  </div>
+</div>
+
+<!-- Main Content -->
+<div class="main hidden" id="mainContent">
+
+  <!-- Refresh Bar -->
+  <div class="refresh-bar">
+    <span class="last-update" id="lastUpdate"></span>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-card hidden" id="loadingCard">
+    <div class="spinner"></div>
+    <p>正在查询 Supabase 数据…</p>
+  </div>
+
+  <!-- Stat Cards -->
+  <div class="stat-grid hidden" id="statGrid">
+    <div class="stat-card accent">
+      <div class="stat-value" id="statUsers">0</div>
+      <div class="stat-label">有学习记录的用户</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-value" id="statIdioms">0</div>
+      <div class="stat-label">已学成语总数（去重）</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="stat-value" id="statAvg">0</div>
+      <div class="stat-label">人均学习成语数</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statReviews">0</div>
+      <div class="stat-label">累计复习次数</div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="chart-grid hidden" id="chartGrid">
+    <div class="chart-card">
+      <h3>📊 用户学习量排行</h3>
+      <div class="chart-wrap"><canvas id="chartUsers"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>📈 学习活动时间线</h3>
+      <div class="chart-wrap"><canvas id="chartTimeline"></canvas></div>
+    </div>
+  </div>
+
+  <!-- User Detail Table -->
+  <div class="table-card hidden" id="tableCard">
+    <h3>📋 用户详情</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>用户</th>
+          <th>已学成语</th>
+          <th>进度</th>
+          <th>复习次数</th>
+          <th>最后活跃</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Empty State -->
+  <div class="empty-state hidden" id="emptyState">
+    <div class="empty-icon">📭</div>
+    <p>还没有用户数据。<br>分享链接给朋友们，等他们登录学习后，数据就会出现在这里。</p>
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+//  成知·数据看板  —  本地代理版
+//  通过 dashboard-proxy.js 代理访问 Supabase，密钥藏在服务器端
+// ============================================================
+
+const IS_PROXY = (window.DASHBOARD_MODE === 'proxy');
+const PROXY_BASE = window.PROXY_BASE || '';
+let charts = {};
+
+// ---------- 数据获取 ----------
+async function getProgress() {
+  const res = await fetch(PROXY_BASE + '/api/progress');
+  if (!res.ok) throw new Error('/api/progress ' + res.status);
+  return await res.json();
+}
+
+async function getReviews() {
+  const res = await fetch(PROXY_BASE + '/api/reviews');
+  if (!res.ok) throw new Error('/api/reviews ' + res.status);
+  return await res.json();
+}
+
+async function getUsers() {
+  const res = await fetch(PROXY_BASE + '/api/users');
+  if (!res.ok) return {};
+  return await res.json();
+}
+
+// 显示用户名的辅助函数
+function displayUser(userId, userMap) {
+  const email = userMap && userMap[userId];
+  if (email) return email;
+  return userId.substring(0, 8) + '…';
+}
+
+// ---------- Init ----------
+async function initDashboard() {
+  // 代理模式下不需要输入密钥，直接连接
+  document.getElementById('setupOverlay').classList.add('hidden');
+  document.getElementById('mainContent').classList.remove('hidden');
+
+  try {
+    // 快速测试连通性
+    const test = await fetch(PROXY_BASE + '/api/progress');
+    if (!test.ok) throw new Error('proxy test ' + test.status);
+    document.getElementById('statusDot').className = 'status-dot connected';
+    document.getElementById('statusLabel').textContent = '已连接';
+    document.getElementById('btnRefresh').disabled = false;
+    document.getElementById('btnExport').disabled = false;
+  } catch (e) {
+    console.error('代理连接失败:', e);
+    alert('❌ 代理连接失败\n' + (e.message || '') + '\n\n请检查：\n1. dashboard-proxy.js 是否已启动\n2. 按 F12 看 Console');
+    document.getElementById('statusDot').className = 'status-dot disconnected';
+    document.getElementById('statusLabel').textContent = '代理未启动';
+    document.getElementById('btnRefresh').disabled = true;
+    document.getElementById('btnExport').disabled = true;
+    return;
+  }
+
+  await refreshDashboard();
+}
+
+// ---------- Dashboard Refresh ----------
+async function refreshDashboard() {
+  // Show loading
+  document.getElementById('loadingCard').classList.remove('hidden');
+  document.getElementById('statGrid').classList.add('hidden');
+  document.getElementById('chartGrid').classList.add('hidden');
+  document.getElementById('tableCard').classList.add('hidden');
+  document.getElementById('emptyState').classList.add('hidden');
+
+  try {
+    // --- Fetch data from proxy ---
+    const [progress, reviews, userMap] = await Promise.all([
+      getProgress(),
+      getReviews(),
+      getUsers()
+    ]);
+
+    console.log('[Dashboard] progress:', progress?.length, 'reviews:', reviews?.length, 'users:', Object.keys(userMap || {}).length);
+
+    // --- If no data at all ---
+    if ((!progress || progress.length === 0) && (!reviews || reviews.length === 0)) {
+      document.getElementById('loadingCard').classList.add('hidden');
+      document.getElementById('emptyState').classList.remove('hidden');
+      return;
+    }
+
+    // --- Aggregate ---
+    // userProgressMap 也接受 review_log 作为备选来源（first_learn_time 不为空即视为已学）
+    const userProgressMap = {};   // user_id → Set of idiom_ids
+    const userLatestMap = {};     // user_id → latest updated_at
+    const userReviewMap = {};     // user_id → total review_count
+
+    (progress || []).forEach(row => {
+      if (!userProgressMap[row.user_id]) userProgressMap[row.user_id] = new Set();
+      userProgressMap[row.user_id].add(row.idiom_id);
+      const ts = new Date(row.updated_at).getTime();
+      if (!userLatestMap[row.user_id] || ts > userLatestMap[row.user_id]) {
+        userLatestMap[row.user_id] = ts;
+      }
+    });
+
+    (reviews || []).forEach(row => {
+      // 复习表里有 first_learn_time 也视为该用户学过这个成语
+      if (row.first_learn_time) {
+        if (!userProgressMap[row.user_id]) userProgressMap[row.user_id] = new Set();
+        userProgressMap[row.user_id].add(row.idiom_id);
+      }
+      if (!userReviewMap[row.user_id]) userReviewMap[row.user_id] = 0;
+      userReviewMap[row.user_id] += (row.review_count || 0);
+      const ts = row.last_review_time ? new Date(row.last_review_time).getTime()
+                : new Date(row.updated_at || 0).getTime();
+      if (ts && (!userLatestMap[row.user_id] || ts > userLatestMap[row.user_id])) {
+        userLatestMap[row.user_id] = ts;
+      }
+    });
+
+    const userIds = Object.keys(userProgressMap);
+    const totalUsers = userIds.length;
+    const totalIdioms = new Set(
+      [...(progress || []).map(r => r.idiom_id), ...(reviews || []).filter(r => r.first_learn_time).map(r => r.idiom_id)]
+    ).size;
+    const avgIdioms = totalUsers > 0 ? Math.round(totalIdioms / totalUsers) : 0;
+    const totalReviews = Object.values(userReviewMap).reduce((a, b) => a + b, 0);
+
+    // --- Update Stat Cards ---
+    animateValue('statUsers', totalUsers);
+    animateValue('statIdioms', totalIdioms);
+    animateValue('statAvg', avgIdioms);
+    animateValue('statReviews', totalReviews);
+
+    // --- Build user list sorted by idioms learned ---
+    const userList = userIds.map(uid => ({
+      id: uid,
+      count: userProgressMap[uid].size,
+      reviews: userReviewMap[uid] || 0,
+      lastActive: userLatestMap[uid] ? new Date(userLatestMap[uid]) : null
+    })).sort((a, b) => b.count - a.count);
+
+    // --- Chart: User ranking (top 20) ---
+    const topUsers = userList.slice(0, 20);
+    const chartUserCtx = document.getElementById('chartUsers').getContext('2d');
+    if (charts.userRank) charts.userRank.destroy();
+    charts.userRank = new Chart(chartUserCtx, {
+      type: 'bar',
+      data: {
+        labels: topUsers.map((u, i) => `用户${i + 1}`),
+        datasets: [{
+          label: '已学成语数',
+          data: topUsers.map(u => u.count),
+          backgroundColor: '#C45A3C',
+          borderRadius: 6,
+          borderSkipped: false
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 5 } }
+        }
+      }
+    });
+
+    // --- Chart: Activity timeline (last 14 days) ---
+    const allTimestamps = [...(progress || []), ...(reviews || [])]
+      .map(r => r.updated_at || r.last_review_time)
+      .filter(Boolean)
+      .map(t => new Date(t));
+
+    const days = [];
+    const dayLabels = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      d.setHours(0, 0, 0, 0);
+      const ds = d.toISOString().split('T')[0];
+      const month = d.getMonth() + 1;
+      const day = d.getDate();
+      dayLabels.push(`${month}/${day}`);
+      days.push({ date: ds, label: `${month}/${day}`, count: 0 });
+    }
+
+    allTimestamps.forEach(ts => {
+      const ds = ts.toISOString().split('T')[0];
+      const found = days.find(d => d.date === ds);
+      if (found) found.count++;
+    });
+
+    const chartTimeCtx = document.getElementById('chartTimeline').getContext('2d');
+    if (charts.timeline) charts.timeline.destroy();
+    charts.timeline = new Chart(chartTimeCtx, {
+      type: 'line',
+      data: {
+        labels: dayLabels,
+        datasets: [{
+          label: '学习/复习活动次数',
+          data: days.map(d => d.count),
+          borderColor: '#3A6B8C',
+          backgroundColor: 'rgba(58, 107, 140, 0.1)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 4,
+          pointBackgroundColor: '#3A6B8C'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1 } }
+        }
+      }
+    });
+
+    // --- User Detail Table ---
+    const TOTAL_IDIOMS = 500; // 成语库总量（约数，随数据文件增加可调整）
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = userList.map(u => {
+      const pct = Math.min(100, Math.round(u.count / TOTAL_IDIOMS * 100));
+      const email = userMap && userMap[u.id] ? userMap[u.id] : u.id.substring(0, 8) + '…';
+      return `
+      <tr>
+        <td class="user-id-cell" title="${u.id}">${email}</td>
+        <td><strong>${u.count}</strong> 个</td>
+        <td>
+          <span>${pct}%</span>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar-fill" style="width:${pct}%"></div>
+          </div>
+        </td>
+        <td>${u.reviews} 次</td>
+        <td>${u.lastActive ? formatTime(u.lastActive) : '—'}</td>
+      </tr>
+    `}).join('');
+
+    // --- Show ---
+    document.getElementById('loadingCard').classList.add('hidden');
+    document.getElementById('statGrid').classList.remove('hidden');
+    document.getElementById('chartGrid').classList.remove('hidden');
+    document.getElementById('tableCard').classList.remove('hidden');
+
+    // --- Update timestamp ---
+    document.getElementById('lastUpdate').textContent =
+      '最后更新：' + new Date().toLocaleString('zh-CN');
+
+  } catch (e) {
+    console.error('查询失败', e);
+    document.getElementById('loadingCard').classList.add('hidden');
+    alert('数据查询失败：' + (e.message || '未知错误') + '\n请检查密钥是否正确。');
+  }
+}
+
+// ---------- 一键备份导出 ----------
+async function exportBackup() {
+  const btn = document.getElementById('btnExport');
+  const origText = btn.textContent;
+  btn.textContent = '⏳ 导出中…';
+  btn.disabled = true;
+
+  try {
+    // 同时拉取所有数据
+    const [progress, reviews, settings, userMap] = await Promise.all([
+      getProgress(),
+      getReviews(),
+      fetch(PROXY_BASE + '/api/settings').then(r => r.ok ? r.json() : []),
+      getUsers()
+    ]);
+
+    // 组装 JSON 结构
+    const exportData = {
+      exportTime: new Date().toISOString(),
+      exportVersion: '1.0',
+      project: 'hycakfuryhapteopgmrk',
+      summary: {
+        users: Object.keys(userMap || {}).length,
+        progressRows: (progress || []).length,
+        reviewRows: (reviews || []).length,
+        settingsRows: (settings || []).length
+      },
+      users: userMap,           // uuid → email
+      user_progress: progress,
+      user_review_log: reviews,
+      user_settings: settings
+    };
+
+    // 下载为 JSON 文件
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const dateStr = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `成知备份_${dateStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    // 显示成功提示
+    const summary = exportData.summary;
+    btn.textContent = '✅ 已导出';
+    setTimeout(() => { btn.textContent = origText; btn.disabled = false; }, 3000);
+
+    console.log('[Backup] 导出成功', summary);
+    // 弹出简洁的成功通知（不用 alert，用内联提示更好）
+    showToast(`✅ 备份完成！${summary.users} 位用户 · ${summary.progressRows} 条学习记录 · ${summary.reviewRows} 条复习日志`);
+
+  } catch (e) {
+    console.error('[Backup] 导出失败', e);
+    alert('导出失败：' + (e.message || '未知错误'));
+    btn.textContent = origText;
+    btn.disabled = false;
+  }
+}
+
+// ---------- Toast 通知 ----------
+function showToast(msg) {
+  let toast = document.getElementById('toastNotif');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toastNotif';
+    toast.style.cssText = `
+      position:fixed; bottom:32px; left:50%; transform:translateX(-50%);
+      background:#1A1209; color:#F2E8D5; padding:14px 24px;
+      border-radius:10px; font-size:14px; font-weight:600;
+      box-shadow:0 4px 20px rgba(0,0,0,0.35); z-index:9999;
+      transition:opacity 0.4s; white-space:nowrap;
+    `;
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 4000);
+}
+
+// ---------- Helpers ----------
+function formatTime(date) {
+  const now = new Date();
+  const diff = now - date;
+  if (diff < 60000) return '刚刚';
+  if (diff < 3600000) return Math.floor(diff / 60000) + ' 分钟前';
+  if (diff < 86400000) return Math.floor(diff / 3600000) + ' 小时前';
+  if (diff < 604800000) return Math.floor(diff / 86400000) + ' 天前';
+  return date.toLocaleDateString('zh-CN');
+}
+
+function animateValue(id, target) {
+  const el = document.getElementById(id);
+  const start = parseInt(el.textContent) || 0;
+  if (start === target) { el.textContent = target; return; }
+  const duration = 600;
+  const startTime = performance.now();
+  function step(now) {
+    const progress = Math.min((now - startTime) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3); // ease-out
+    el.textContent = Math.round(start + (target - start) * eased);
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+// ---------- Auto-init ----------
+window.addEventListener('DOMContentLoaded', initDashboard);
+</script>
+</body>
+</html>
