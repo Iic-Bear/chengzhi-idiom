@@ -3723,8 +3723,26 @@ function renderWeekCheckin() {
 
 function spendYueli(amount) {
   const data = loadYueli();
-  if (data.balance < amount) return false;
+  if (data.balance < amount) {
+    // 余额不足
+    // 如果未登录，并且没有提示过，则弹出登录界面
+    if (!currentUser && !data.yueliPrompted) {
+      data.yueliPrompted = true;
+      saveYueli(data);
+      setTimeout(function() {
+        window.toggleLoginDialog(true);
+      }, 500);
+      showFeedback('成知不足！注册登录可获得更多成知', 'error');
+    }
+    return false;
+  }
   data.balance -= amount;
+  
+  // 如果余额变为0，重置提示标记（以便下次余额为0时再次提示）
+  if (data.balance === 0) {
+    data.yueliPrompted = false;
+  }
+  
   saveYueli(data);
   refreshYueliUI('flash');
   showYueliFloat(-amount);
@@ -6421,7 +6439,17 @@ function renderEbbPreview(){
         window.toggleLoginDialog(false);
         window.SupabaseSync.saveCloudData().catch(function(e){ console.warn('自动备份失败', e); });
         updateLoginUI();
-        showLoginToast('注册成功，数据已备份到云端');
+        
+        // 新用户注册奖励：赠送100成知
+        var yueliData = loadYueli();
+        if (!yueliData.firstLoginBonus) {
+          gainYueli(100, '新用户注册奖励');
+          yueliData.firstLoginBonus = true;
+          saveYueli(yueliData);
+          showLoginToast('注册成功，数据已备份到云端，赠送100成知');
+        } else {
+          showLoginToast('注册成功，数据已备份到云端');
+        }
       }
     } catch (err) {
       loginError.textContent = err.message || '操作失败';
@@ -6612,6 +6640,16 @@ function renderEbbPreview(){
       e.preventDefault();
       window.doSubmitLogin();
     });
+  }
+
+  // 新用户引导：首次访问弹出登录界面
+  var hasVisited = localStorage.getItem('riZhiLu_hasVisited');
+  if (!hasVisited) {
+    localStorage.setItem('riZhiLu_hasVisited', '1');
+    // 延迟弹出，让页面先加载完成
+    setTimeout(function() {
+      window.toggleLoginDialog(true);
+    }, 1500);
   }
 
   // 初始化：检查登录状态
