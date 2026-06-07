@@ -2255,23 +2255,6 @@
     opacity: 0.65;
   }
 
-  /* 登录后用户区域 */
-  .header-user-area {
-    display: none; align-items: center; gap: 6px;
-    margin-left: 6px; position: relative;
-  }
-  .header-user-area.show { display: flex; }
-  .user-avatar-btn {
-    width: 30px; height: 30px; border-radius: 50%;
-    background: var(--ink); color: var(--manila);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 12px; cursor: pointer; user-select: none;
-    border: var(--border-w) solid var(--ink);
-    font-family: var(--font-title); font-weight: 700;
-    transition: transform 0.12s;
-  }
-  .user-avatar-btn:active { transform: scale(0.9); }
-
   /* 登录弹窗 */
   .login-mask {
     position: fixed; inset: 0; z-index: 9000;
@@ -2349,24 +2332,123 @@
     margin-top: 8px; min-height: 18px;
   }
 
-  /* 用户下拉菜单 */
-  .user-dropdown {
-    position: absolute; top: 100%; right: 0; margin-top: 8px;
-    background: var(--manila); border: var(--border-w) solid var(--ink);
-    border-radius: var(--radius); box-shadow: var(--shadow-sm);
-    min-width: 170px; z-index: 100;
-    display: none;
+  /* 个人资料面板 */
+  .profile-mask {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.3); z-index: 999;
+    visibility: hidden; opacity: 0;
+    transition: opacity 0.3s ease, visibility 0.3s;
+    pointer-events: none;
   }
-  .user-dropdown.open { display: block; }
-  .user-dropdown-item {
-    display: block; width: 100%; padding: 10px 14px;
-    background: none; border: none; border-bottom: 1px solid var(--manila-dk);
-    font-size: 13px; font-family: var(--font-body);
-    color: var(--ink); cursor: pointer; text-align: left;
+  .profile-mask.open { visibility: visible; opacity: 1; pointer-events: auto; }
+  .profile-panel {
+    position: fixed; top: 0; left: 50%; transform: translateX(-50%) translateY(-30px) scale(0.96);
+    width: 100%; max-width: 480px;
+    height: 100%; z-index: 1000;
+    visibility: hidden; opacity: 0;
+    flex-direction: column;
+    background: var(--manila);
+    transition: opacity 0.35s cubic-bezier(.22,1,.36,1), transform 0.35s cubic-bezier(.22,1,.36,1), visibility 0.35s;
+    pointer-events: none;
+    display: flex;
   }
-  .user-dropdown-item:last-child { border-bottom: none; }
-  .user-dropdown-item:active { background: var(--manila-dk); }
-  .user-dropdown-item.danger { color: #B03A3A; }
+  .profile-panel.open {
+    visibility: visible; opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+    pointer-events: auto;
+  }
+  .profile-card {
+    text-align: center; padding: 28px 16px 20px; margin-bottom: 20px;
+    border: var(--border-hvy) solid var(--ink); border-radius: var(--radius);
+    background: var(--manila-lt); position: relative;
+  }
+  .profile-avatar {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: var(--ink); color: var(--manila);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px; margin: 0 auto 12px;
+    border: var(--border-w) solid var(--ink);
+    cursor: pointer; user-select: none;
+    transition: transform 0.12s;
+  }
+  .profile-avatar:active { transform: scale(0.92); }
+  .profile-email {
+    font-size: 12px; color: var(--ink-light);
+    margin-bottom: 4px; word-break: break-all;
+  }
+  .profile-form-row {
+    margin-bottom: 16px;
+  }
+  .profile-form-row label {
+    display: block; font-size: 12px; font-weight: 700;
+    letter-spacing: 0.08em; color: var(--ink-mid);
+    margin-bottom: 5px;
+  }
+  .profile-input, .profile-select {
+    width: 100%; padding: 10px 12px;
+    border: var(--border-w) solid var(--ink);
+    border-radius: var(--radius);
+    font-size: 14px; font-family: var(--font-body);
+    background: var(--manila-lt); color: var(--ink);
+    outline: none; transition: border-color 0.15s;
+    appearance: none; -webkit-appearance: none;
+  }
+  .profile-input:focus, .profile-select:focus { border-color: #D4A857; }
+  .profile-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%231A1209' stroke-width='2'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center;
+    padding-right: 28px;
+  }
+  .profile-emoji-grid {
+    display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px;
+    margin-top: 6px;
+  }
+  .profile-emoji-btn {
+    aspect-ratio: 1; font-size: 20px;
+    background: var(--manila-lt); border: var(--border-w) solid var(--ink);
+    border-radius: var(--radius); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s, transform 0.1s;
+    padding: 0;
+  }
+  .profile-emoji-btn:active { transform: scale(0.9); }
+  .profile-emoji-btn.selected {
+    background: var(--ink); border-color: var(--ink);
+  }
+  .profile-emoji-btn.selected span { filter: brightness(1.5); }
+  .profile-save-btn {
+    width: 100%; padding: 12px 0;
+    background: var(--ink); color: var(--manila);
+    border: none; border-radius: var(--radius);
+    font-family: var(--font-title); font-size: 15px; font-weight: 700;
+    letter-spacing: 0.12em; cursor: pointer;
+    transition: opacity 0.15s; margin-top: 8px;
+  }
+  .profile-save-btn:active { opacity: 0.82; }
+  .profile-save-btn.saved { background: #2E6B3E; }
+  .profile-action-btn {
+    width: 100%; padding: 10px 0; margin-bottom: 8px;
+    background: var(--manila-lt); color: var(--ink);
+    border: var(--border-w) solid var(--ink);
+    border-radius: var(--radius);
+    font-family: var(--font-body); font-size: 13px;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .profile-action-btn:active { background: var(--manila-dk); }
+  .profile-action-btn.danger { color: #B03A3A; border-color: #B03A3A; }
+  .profile-divider {
+    border: none; border-top: 1px solid var(--manila-dk);
+    margin: 16px 0 12px;
+  }
+  .profile-reward-banner {
+    background: #E8F5E0; border: var(--border-w) solid #2E6B3E;
+    border-radius: var(--radius); padding: 10px 14px;
+    margin-bottom: 16px; text-align: center;
+    font-size: 13px; color: #1A3D0F;
+  }
+  .profile-reward-banner strong {
+    font-family: var(--font-title); font-size: 16px; color: #2E6B3E;
+  }
 </style>
 </head>
 <body>
@@ -2384,15 +2466,6 @@
     <div class="header-count" id="header-count-btn" onclick="playCardTapSound();openPlan(event)">
       <strong id="count-done">0</strong>
       <span id="header-date-label" style="font-size:11px;letter-spacing:0.1em">已学成语</span>
-    </div>
-    <div class="header-user-area" id="header-user-area">
-      <div class="user-avatar-btn" id="user-avatar-btn">?</div>
-      <div class="user-dropdown" id="user-dropdown">
-        <button class="user-dropdown-item" id="dd-email"></button>
-        <button class="user-dropdown-item" id="dd-backup" style="display:none">备份到云端</button>
-        <button class="user-dropdown-item" id="dd-restore" style="display:none">从云端恢复</button>
-        <button class="user-dropdown-item danger" id="dd-logout">退出登录</button>
-      </div>
     </div>
   </header>
   <div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar" style="width:0%"></div></div>
@@ -2490,6 +2563,50 @@
           <div class="yueli-rule-text"><strong>等级体系</strong><br>V1 至 V64，累计经验满 <strong>6400</strong> 升至满级。<br>每级所需经验从 50 线性递增至 152，<br>越往后每级所需经验越多。</div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- 个人资料面板 -->
+  <div class="profile-mask" id="profile-mask" onclick="toggleProfilePanel(false)"></div>
+  <div class="profile-panel" id="profile-panel">
+    <div class="yueli-panel-header">
+      <h2>个人资料</h2>
+      <div class="yueli-panel-close" onclick="toggleProfilePanel(false)">✕</div>
+    </div>
+    <div class="yueli-panel-body" id="profile-body">
+      <div class="profile-card">
+        <div class="profile-avatar" id="profile-avatar-btn" onclick="toggleEmojiPicker()">👤</div>
+        <div class="profile-email" id="profile-email">未登录</div>
+        <div style="font-size:11px;color:var(--ink-light)">点击头像更换</div>
+      </div>
+      <div id="profile-emoji-picker" style="display:none;margin-bottom:16px;">
+        <label style="font-size:12px;font-weight:700;color:var(--ink-mid);letter-spacing:0.08em;margin-bottom:5px;display:block;">选择头像</label>
+        <div class="profile-emoji-grid" id="profile-emoji-grid"></div>
+      </div>
+      <div class="profile-form-row">
+        <label>昵称</label>
+        <input type="text" class="profile-input" id="profile-nickname" placeholder="给自己起个名字" maxlength="12">
+      </div>
+      <div class="profile-form-row">
+        <label>性别</label>
+        <select class="profile-select" id="profile-gender">
+          <option value="">保密</option>
+          <option value="男">男</option>
+          <option value="女">女</option>
+        </select>
+      </div>
+      <div class="profile-form-row">
+        <label>生日</label>
+        <input type="date" class="profile-input" id="profile-birthday">
+      </div>
+      <div class="profile-reward-banner" id="profile-reward-banner" style="display:none">
+        <strong>+50 成知</strong><br>完善资料即可获得奖励
+      </div>
+      <button class="profile-save-btn" id="profile-save-btn" onclick="saveProfile()">保存资料</button>
+      <hr class="profile-divider">
+      <button class="profile-action-btn" id="profile-backup-btn" onclick="profileBackup()">☁️ 备份到云端</button>
+      <button class="profile-action-btn" id="profile-restore-btn" onclick="profileRestore()">📥 从云端恢复</button>
+      <button class="profile-action-btn danger" id="profile-logout-btn" onclick="profileLogout()">退出登录</button>
     </div>
   </div>
 
@@ -6225,9 +6342,17 @@ function renderEbbPreview(){
   var loginFormTitle = document.getElementById('login-form-title');
   var loginSubtitle = document.getElementById('login-subtitle');
   var headerTitleWrap = document.getElementById('header-title-wrap');
-  var headerUserArea = document.getElementById('header-user-area');
-  var userAvatarBtn = document.getElementById('user-avatar-btn');
-  var userDropdown = document.getElementById('user-dropdown');
+  var profileMask = document.getElementById('profile-mask');
+  var profilePanel = document.getElementById('profile-panel');
+  var profileEmail = document.getElementById('profile-email');
+  var profileAvatarBtn = document.getElementById('profile-avatar-btn');
+  var profileNickname = document.getElementById('profile-nickname');
+  var profileGender = document.getElementById('profile-gender');
+  var profileBirthday = document.getElementById('profile-birthday');
+  var profileSaveBtn = document.getElementById('profile-save-btn');
+  var profileRewardBanner = document.getElementById('profile-reward-banner');
+  var currentUser = null;
+  var selectedEmoji = '👤';
 
   window.toggleLoginDialog = function(show) {
     if (show === undefined) {
@@ -6311,49 +6436,155 @@ function renderEbbPreview(){
     try {
       user = await window.SupabaseSync.getUser();
     } catch(e) {}
+    currentUser = user;
 
     if (user) {
-      if (headerTitleWrap) headerTitleWrap.classList.remove('login-trigger');
-      if (headerUserArea) headerUserArea.classList.add('show');
-      if (userAvatarBtn) {
-        userAvatarBtn.textContent = (user.email || '?').charAt(0).toUpperCase();
-        userAvatarBtn.title = user.email;
-      }
-      var ddEmail = document.getElementById('dd-email');
-      if (ddEmail) { ddEmail.textContent = user.email || ''; ddEmail.style.display = 'block'; }
-      var ddBackup = document.getElementById('dd-backup');
-      if (ddBackup) ddBackup.style.display = 'block';
-      var ddRestore = document.getElementById('dd-restore');
-      if (ddRestore) ddRestore.style.display = 'block';
+      // 登录后仍然保持 title 可点击，点击打开资料面板
+      if (headerTitleWrap) headerTitleWrap.classList.add('login-trigger');
+      if (profileEmail) profileEmail.textContent = user.email || '';
     } else {
       if (headerTitleWrap) headerTitleWrap.classList.add('login-trigger');
-      if (headerUserArea) headerUserArea.classList.remove('show');
     }
   }
+
+  window.toggleProfilePanel = function(show) {
+    if (show) {
+      loadProfile();
+      if (profileMask) profileMask.classList.add('open');
+      if (profilePanel) profilePanel.classList.add('open');
+    } else {
+      if (profileMask) profileMask.classList.remove('open');
+      if (profilePanel) profilePanel.classList.remove('open');
+      var picker = document.getElementById('profile-emoji-picker');
+      if (picker) picker.style.display = 'none';
+    }
+  };
+
+  function loadProfile() {
+    var raw = localStorage.getItem('riZhiLu_profile');
+    var p = raw ? JSON.parse(raw) : {};
+    selectedEmoji = p.avatar || '👤';
+    if (profileAvatarBtn) profileAvatarBtn.textContent = selectedEmoji;
+    if (profileNickname) profileNickname.value = p.nickname || '';
+    if (profileGender) profileGender.value = p.gender || '';
+    if (profileBirthday) profileBirthday.value = p.birthday || '';
+    if (profileSaveBtn) {
+      profileSaveBtn.textContent = '保存资料';
+      profileSaveBtn.classList.remove('saved');
+    }
+    // 如果有未领取的完善奖励，显示横幅
+    var hasReward = localStorage.getItem('riZhiLu_profileReward');
+    if (!hasReward && profileRewardBanner) {
+      // 检查是否已填过资料（老用户）
+      if (p.nickname && p.gender && p.birthday) {
+        localStorage.setItem('riZhiLu_profileReward', '1');
+      } else {
+        profileRewardBanner.style.display = 'block';
+      }
+    } else if (profileRewardBanner) {
+      profileRewardBanner.style.display = 'none';
+    }
+  }
+
+  window.saveProfile = function() {
+    var raw = localStorage.getItem('riZhiLu_profile');
+    var old = raw ? JSON.parse(raw) : {};
+    var p = {
+      avatar: selectedEmoji,
+      nickname: (profileNickname ? profileNickname.value : '').trim(),
+      gender: profileGender ? profileGender.value : '',
+      birthday: profileBirthday ? profileBirthday.value : ''
+    };
+    localStorage.setItem('riZhiLu_profile', JSON.stringify(p));
+
+    // 首次完善资料奖励 50 成知
+    var hasReward = localStorage.getItem('riZhiLu_profileReward');
+    var isComplete = p.nickname && p.gender && p.birthday;
+    if (!hasReward && isComplete) {
+      localStorage.setItem('riZhiLu_profileReward', '1');
+      gainYueli(50, '资料完善奖励');
+      if (profileRewardBanner) profileRewardBanner.style.display = 'none';
+    }
+
+    if (profileSaveBtn) {
+      profileSaveBtn.textContent = '已保存 ✓';
+      profileSaveBtn.classList.add('saved');
+      setTimeout(function(){
+        profileSaveBtn.textContent = '保存资料';
+        profileSaveBtn.classList.remove('saved');
+      }, 1500);
+    }
+  };
+
+  window.toggleEmojiPicker = function() {
+    var picker = document.getElementById('profile-emoji-picker');
+    if (!picker) return;
+    if (picker.style.display === 'none') {
+      picker.style.display = 'block';
+      renderEmojiGrid();
+    } else {
+      picker.style.display = 'none';
+    }
+  };
+
+  function renderEmojiGrid() {
+    var grid = document.getElementById('profile-emoji-grid');
+    if (!grid || grid.children.length > 0) return;
+    var emojis = ['👤','😀','😎','🤓','🥸','🤠','👻','🤖','👽','🐱','🐶','🐼','🐯','🦁','🦊','🐰','🐸','🐙','🦉','🦋','🌸','🍀','🍎','🍊','🍋','🍇','🌟','🔥','💎','⚡','🎵','📚','✏️','🎨','🎯','🏆','🧩','🔮','🌙','☀️'];
+    emojis.forEach(function(emoji){
+      var btn = document.createElement('button');
+      btn.className = 'profile-emoji-btn' + (emoji === selectedEmoji ? ' selected' : '');
+      btn.innerHTML = '<span>' + emoji + '</span>';
+      btn.onclick = function(){
+        selectedEmoji = emoji;
+        if (profileAvatarBtn) profileAvatarBtn.textContent = emoji;
+        var btns = grid.querySelectorAll('.profile-emoji-btn');
+        btns.forEach(function(b){ b.classList.remove('selected'); });
+        btn.classList.add('selected');
+      };
+      grid.appendChild(btn);
+    });
+  }
+
+  window.profileBackup = function() {
+    window.SupabaseSync.saveCloudData().then(function(){
+      showLoginToast('数据已备份到云端');
+    }).catch(function(err){
+      showLoginToast('备份失败：' + err.message);
+    });
+  };
+
+  window.profileRestore = function() {
+    if (!confirm('确定从云端恢复数据？\n\n此操作会用云端数据覆盖本地的学习进度和设置。')) return;
+    window.SupabaseSync.loadCloudData().then(function(count){
+      showLoginToast('已恢复 ' + count + ' 条数据，正在刷新...');
+      setTimeout(function(){ location.reload(); }, 1500);
+    }).catch(function(err){
+      showLoginToast('恢复失败：' + err.message);
+    });
+  };
+
+  window.profileLogout = function() {
+    window.SupabaseSync.signOut().then(function(){
+      updateLoginUI();
+      toggleProfilePanel(false);
+      showLoginToast('已退出登录');
+    });
+  };
 
   // ===== 事件绑定 =====
   if (headerTitleWrap) {
     headerTitleWrap.addEventListener('click', function(e){
       // 如果点击的是等级徽章，让它自己的 onclick 处理
       if (e.target.closest('.level-badge')) return;
-      // 已登录时不弹登录框（用户区域已显示）
-      if (headerUserArea && headerUserArea.classList.contains('show')) return;
-      window.toggleLoginDialog(true);
+      // 已登录时打开资料面板，未登录时打开登录框
+      if (currentUser) {
+        window.toggleProfilePanel(true);
+      } else {
+        window.toggleLoginDialog(true);
+      }
     });
   }
-
-  if (userAvatarBtn) {
-    userAvatarBtn.addEventListener('click', function(e){
-      e.stopPropagation();
-      userDropdown.classList.toggle('open');
-    });
-  }
-
-  document.addEventListener('click', function(e){
-    if (userDropdown && !userAvatarBtn.contains(e.target) && !userDropdown.contains(e.target)) {
-      userDropdown.classList.remove('open');
-    }
-  });
 
   if (loginMask) {
     loginMask.addEventListener('click', function(e){
@@ -6380,46 +6611,6 @@ function renderEbbPreview(){
     loginSubmitBtn.addEventListener('click', function(e){
       e.preventDefault();
       window.doSubmitLogin();
-    });
-  }
-
-  // 下拉菜单 - 备份
-  var ddBackup = document.getElementById('dd-backup');
-  if (ddBackup) {
-    ddBackup.addEventListener('click', function(){
-      userDropdown.classList.remove('open');
-      window.SupabaseSync.saveCloudData().then(function(){
-        showLoginToast('数据已备份到云端');
-      }).catch(function(err){
-        showLoginToast('备份失败：' + err.message);
-      });
-    });
-  }
-
-  // 下拉菜单 - 恢复
-  var ddRestore = document.getElementById('dd-restore');
-  if (ddRestore) {
-    ddRestore.addEventListener('click', function(){
-      userDropdown.classList.remove('open');
-      if (!confirm('确定从云端恢复数据？\n\n此操作会用云端数据覆盖本地的学习进度和设置。')) return;
-      window.SupabaseSync.loadCloudData().then(function(count){
-        showLoginToast('已恢复 ' + count + ' 条数据，正在刷新...');
-        setTimeout(function(){ location.reload(); }, 1500);
-      }).catch(function(err){
-        showLoginToast('恢复失败：' + err.message);
-      });
-    });
-  }
-
-  // 下拉菜单 - 退出
-  var ddLogout = document.getElementById('dd-logout');
-  if (ddLogout) {
-    ddLogout.addEventListener('click', function(){
-      userDropdown.classList.remove('open');
-      window.SupabaseSync.signOut().then(function(){
-        updateLoginUI();
-        showLoginToast('已退出登录');
-      });
     });
   }
 
