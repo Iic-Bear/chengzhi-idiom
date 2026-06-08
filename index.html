@@ -6559,6 +6559,13 @@ function renderEbbPreview(){
         profileSaveBtn.classList.remove('saved');
       }, 1500);
     }
+
+    // 自动同步到云端
+    if (window.SupabaseSync && typeof window.SupabaseSync.saveCloudData === 'function') {
+      window.SupabaseSync.saveCloudData().catch(function(e){
+        console.warn('[Profile] 云端同步失败', e);
+      });
+    }
   };
 
   window.toggleEmojiPicker = function() {

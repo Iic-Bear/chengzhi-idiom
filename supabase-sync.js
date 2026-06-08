@@ -176,6 +176,21 @@ async function saveCloudData() {
     if (error) console.warn('[Supabase] 上传收藏失败', error);
   }
 
+  // 6. 个人资料  riZhiLu_profile
+  const profile = localStorage.getItem('riZhiLu_profile');
+  if (profile) {
+    const { error } = await _sbClient
+      .from('user_settings')
+      .upsert({
+        user_id: userId,
+        setting_key: 'profile',
+        setting_value: profile,
+        updated_at: new Date().toISOString()
+      }, { onConflict: ['user_id', 'setting_key'] });
+    if (error) console.warn('[Supabase] 上传个人资料失败', error);
+    else console.log('[Supabase] 上传个人资料完成');
+  }
+
   console.log('[Supabase] 云端备份完成');
 }
 
@@ -245,6 +260,8 @@ async function loadCloudData() {
         localStorage.setItem('riZhiLu_yueli', row.setting_value);
       } else if (row.setting_key === 'favorites') {
         localStorage.setItem('riZhiLu_favorites', row.setting_value);
+      } else if (row.setting_key === 'profile') {
+        localStorage.setItem('riZhiLu_profile', row.setting_value);
       }
     });
     console.log('[Supabase] 恢复设置：' + settingsData.length + ' 项');
