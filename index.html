@@ -4588,6 +4588,12 @@ function finishReview() {
   if (totalReviewed > 0) {
     gainYueli(totalReviewed, `完成复习奖励 🍊`);
   }
+  // 同步到云端（确保复习奖励持久化）
+  if (window.SupabaseSync && typeof window.SupabaseSync.saveCloudData === 'function') {
+    window.SupabaseSync.saveCloudData().catch(function(e){
+      console.warn('[Review] 复习后云端同步失败', e);
+    });
+  }
   reviewState.list = [];
   reviewState.currentIndex = 0;
   cachedDueList = []; // 清空缓存，让 renderReviewPreview 重新计算
@@ -5786,7 +5792,8 @@ backfillReviewLog();
   if (dateLabelEl) dateLabelEl.textContent = dateStr + ' 已学';
   refreshYueliUI();
   refreshLevelUI();
-  yueliDailyLogin();
+  // 注意：yueliDailyLogin() 移至异步初始化末尾执行
+  // （不再在这里同步调用，避免 loadCloudData 后覆盖导致重复签到）
 })();
 
 let previewIndex = Math.floor(Math.random() * IDIOMS.length);
@@ -6506,9 +6513,12 @@ function renderEbbPreview(){
         loginError.textContent = '';
         // 先从云同步当前用户数据（覆盖上个用户的本地残留），完成后再关弹窗
         await window.SupabaseSync.loadCloudData().catch(function(e){ console.warn('加载云端数据失败', e); });
+        // 基于正确的云端数据执行每日签到（idempotent：今天已签到则跳过）
+        refreshYueliUI(); refreshLevelUI();
+        yueliDailyLogin();
         window.toggleLoginDialog(false);
-        // 再上传本地数据到云端（确保是最新合并后的数据）
-        window.SupabaseSync.saveCloudData().catch(function(e){ console.warn('自动备份失败', e); });
+        // 再上传本地数据到云端（包含签到奖励）
+        await window.SupabaseSync.saveCloudData().catch(function(e){ console.warn('自动备份失败', e); });
         updateLoginUI();
         showLoginToast('登录成功');
       } else {
@@ -6522,8 +6532,8 @@ function renderEbbPreview(){
           giveFirstLoginBonus();
           // 新用户首次注册，清除 localStorage 中可能残留的上一个用户的个人资料
           localStorage.removeItem('riZhiLu_profile');
-          // 保存本地数据到云（不含上一个用户的资料）
-          window.SupabaseSync.saveCloudData().catch(function(e){ console.warn('自动备份失败', e); });
+          // 保存本地数据到云（包括正确的 100 成知余额）
+          await window.SupabaseSync.saveCloudData().catch(function(e){ console.warn('自动备份失败', e); });
           updateLoginUI();
           showLoginToast('注册成功！');
         } else {
@@ -6807,7 +6817,9 @@ function renderEbbPreview(){
     try {
       var yueliData = loadYueli();
       if (!yueliData.firstLoginBonus) {
+        // gainYueli 内部会 load + save，所以重新加载最新数据再设标记
         gainYueli(100, '新用户注册奖励');
+        yueliData = loadYueli();
         yueliData.firstLoginBonus = true;
         saveYueli(yueliData);
         showLoginToast('注册成功！赠送 100 成知 🎁');
@@ -6828,10 +6840,9 @@ function renderEbbPreview(){
         var session = await window.SupabaseSync.getSession();
         if (session) {
           await updateLoginUI();
-          // 同步数据到云端
-          await window.SupabaseSync.saveCloudData();
-          // 新用户注册奖励（邮箱确认后才发放）
+          // 新用户注册奖励（先发放到本地，再同步到云端）
           giveFirstLoginBonus();
+          await window.SupabaseSync.saveCloudData();
           showLoginToast('邮箱确认成功，数据已备份到云端');
           console.log('[App] 邮件确认完成');
         } else {
@@ -6840,8 +6851,8 @@ function renderEbbPreview(){
             var s = await window.SupabaseSync.getSession();
             if (s) {
               await updateLoginUI();
-              await window.SupabaseSync.saveCloudData();
               giveFirstLoginBonus();
+              await window.SupabaseSync.saveCloudData();
               showLoginToast('邮箱确认成功，数据已备份到云端');
             } else {
               console.warn('[App] 邮件确认后未能获取 session');
@@ -6860,20 +6871,31 @@ function renderEbbPreview(){
   })();
 
   // 初始化：检查登录状态
-  window.SupabaseSync.getSession().then(function(session){
+  window.SupabaseSync.getSession().then(async function(session){
     updateLoginUI();  // 不管是否登录都要更新UI（未登录显示"登录"）
     if (session) {
       // 先从云端拉取当前用户数据（防止本地残留上一位用户的数据），再上传
-      window.SupabaseSync.loadCloudData().catch(function(e){
+      await window.SupabaseSync.loadCloudData().catch(function(e){
         console.warn('[App] 启动时加载云端数据失败', e);
-      }).then(function(){
-        window.SupabaseSync.saveCloudData().catch(function(e){
-          console.warn('[App] 启动时自动同步失败', e);
-        });
       });
+      // 基于正确的云端数据执行每日签到，然后上传（确保签到奖励同步到云）
+      refreshYueliUI();
+      refreshLevelUI();
+      yueliDailyLogin();
+      await window.SupabaseSync.saveCloudData().catch(function(e){
+        console.warn('[App] 启动时自动同步失败', e);
+      });
+    } else {
+      // 未登录：仅本地签到
+      refreshYueliUI();
+      refreshLevelUI();
+      yueliDailyLogin();
     }
   }).catch(function(){
     updateLoginUI();  // getSession 失败时也要更新UI
+    refreshYueliUI();
+    refreshLevelUI();
+    yueliDailyLogin();
   });
 
 })();
