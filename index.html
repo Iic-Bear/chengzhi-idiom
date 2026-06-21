@@ -2335,6 +2335,23 @@
     font-size: 12px; color: #C0392B; text-align: center;
     margin-top: 8px; min-height: 18px;
   }
+  .confirm-email-screen { text-align: center; }
+  .confirm-email-icon { font-size: 48px; margin-bottom: 12px; }
+  .confirm-email-title {
+    font-family: var(--font-title); font-size: 18px; font-weight: 900;
+    letter-spacing: 0.08em; margin-bottom: 8px;
+  }
+  .confirm-email-desc {
+    font-size: 13px; color: var(--ink-mid); line-height: 1.7;
+    margin-bottom: 20px;
+  }
+  .confirm-email-desc strong {
+    color: var(--ink); font-weight: 700;
+  }
+  .confirm-email-hint {
+    font-size: 11px; color: #3a8c5d; line-height: 1.6;
+    margin-bottom: 16px; margin-top: -8px;
+  }
 
   /* 个人资料面板 */
   .profile-mask {
@@ -6346,6 +6363,19 @@ function renderEbbPreview(){
     </form>
     <button class="login-toggle" id="login-toggle-btn">还没有账号？去注册</button>
     <button class="login-skip" id="login-skip-btn">跳过，本地使用</button>
+    <!-- 确认邮件屏幕（注册后显示） -->
+    <div class="confirm-email-screen" id="confirm-email-screen" style="display:none;">
+      <div class="confirm-email-icon">📧</div>
+      <div class="confirm-email-title">确认邮件已发送</div>
+      <div class="confirm-email-desc">
+        请查收发送到 <strong id="confirm-email-address"></strong> 的邮件，<br>
+        点击邮件中的链接完成注册。
+      </div>
+      <div class="confirm-email-hint">完成邮箱确认后，数据才能备份到云端哦</div>
+      <button class="login-btn" id="confirm-resend-btn">重新发送确认邮件</button>
+      <button class="login-toggle" id="confirm-goto-login-btn">我已确认，去登录</button>
+      <button class="login-skip" id="confirm-skip-btn">跳过，稍后再说</button>
+    </div>
   </div>
 </div>
 
@@ -6388,6 +6418,7 @@ function renderEbbPreview(){
     if (show === undefined) {
       loginMask.classList.toggle('open');
     } else if (show) {
+      resetLoginForm();
       loginMask.classList.add('open');
     } else {
       loginMask.classList.remove('open');
@@ -6409,13 +6440,14 @@ function renderEbbPreview(){
     } else {
       loginFormTitle.textContent = '注册成知';
       loginSubtitle.textContent = '注册后云端保存学习数据';
-      loginBonus.textContent = '首次注册赠送 100 成知';
+      loginBonus.textContent = '注册即送 100 成知（确认邮箱后发放）';
       loginSubmitBtn.textContent = '注册';
       loginToggleBtn.textContent = '已有账号？去登录';
     }
   };
 
   window.skipLogin = function() {
+    resetLoginForm();
     window.toggleLoginDialog(false);
   };
 
@@ -6426,6 +6458,37 @@ function renderEbbPreview(){
       bar.className = 'feedback-bar show success';
       setTimeout(function(){ bar.className = 'feedback-bar'; }, 2000);
     }
+  }
+
+  // 显示"确认邮件已发送"屏幕（替代关闭弹窗）
+  function showConfirmEmailScreen(email) {
+    // 隐藏表单和切换/跳过按钮，显示确认屏幕
+    loginForm.style.display = 'none';
+    loginToggleBtn.style.display = 'none';
+    loginSkipBtn.style.display = 'none';
+    loginBonus.style.display = 'none';
+    loginFormTitle.style.display = 'none';
+    loginSubtitle.style.display = 'none';
+    loginError.style.display = 'none';
+
+    var screen = document.getElementById('confirm-email-screen');
+    var addr = document.getElementById('confirm-email-address');
+    if (screen) screen.style.display = 'block';
+    if (addr) addr.textContent = email;
+  }
+
+  // 恢复登录/注册表单（从确认屏幕切回）
+  function resetLoginForm() {
+    loginForm.style.display = '';
+    loginToggleBtn.style.display = '';
+    loginSkipBtn.style.display = '';
+    loginBonus.style.display = '';
+    loginFormTitle.style.display = '';
+    loginSubtitle.style.display = '';
+    loginError.style.display = '';
+
+    var screen = document.getElementById('confirm-email-screen');
+    if (screen) screen.style.display = 'none';
   }
 
   window.doSubmitLogin = async function() {
@@ -6450,23 +6513,17 @@ function renderEbbPreview(){
       } else {
         await window.SupabaseSync.signUp(email, password);
         loginError.textContent = '';
-        window.toggleLoginDialog(false);
-        window.SupabaseSync.saveCloudData().catch(function(e){ console.warn('自动备份失败', e); });
-        updateLoginUI();
-        
-        // 新用户注册奖励：赠送100成知
-        var yueliData = loadYueli();
-        if (!yueliData.firstLoginBonus) {
-          gainYueli(100, '新用户注册奖励');
-          yueliData.firstLoginBonus = true;
-          saveYueli(yueliData);
-          showLoginToast('注册成功，数据已备份到云端，赠送100成知');
-        } else {
-          showLoginToast('注册成功，数据已备份到云端');
-        }
+        // 不关闭弹窗，不立即给奖励 → 显示"确认邮件已发送"屏幕
+        showConfirmEmailScreen(email);
       }
     } catch (err) {
-      loginError.textContent = err.message || '操作失败';
+      var msg = err.message || '';
+      // "User already registered" → 可能是之前注册但未确认邮箱，也显示确认邮件屏幕
+      if (msg.indexOf('already registered') !== -1 || msg.indexOf('already exists') !== -1 || msg.indexOf('已注册') !== -1 || msg.indexOf('already been registered') !== -1) {
+        showConfirmEmailScreen(email);
+      } else {
+        loginError.textContent = msg || '操作失败';
+      }
     } finally {
       loginSubmitBtn.classList.remove('loading');
       loginSubmitBtn.textContent = isLoginMode ? '登录' : '注册';
@@ -6659,6 +6716,43 @@ function renderEbbPreview(){
     loginSkipBtn.addEventListener('click', window.skipLogin);
   }
 
+  // 确认邮件屏幕按钮
+  var confirmResendBtn = document.getElementById('confirm-resend-btn');
+  if (confirmResendBtn) {
+    confirmResendBtn.addEventListener('click', async function(){
+      var email = loginEmail.value.trim();
+      if (!email) { showLoginToast('邮箱地址为空，请返回重新输入'); return; }
+      confirmResendBtn.textContent = '正在重发…';
+      confirmResendBtn.disabled = true;
+      try {
+        await window.SupabaseSync.resendConfirmation(email);
+        showLoginToast('确认邮件已重新发送');
+      } catch(e) {
+        alert('重发失败：' + (e.message || '未知错误') + '\n\n请检查邮箱地址是否正确。');
+      } finally {
+        confirmResendBtn.textContent = '重新发送确认邮件';
+        confirmResendBtn.disabled = false;
+      }
+    });
+  }
+
+  var confirmGotoLoginBtn = document.getElementById('confirm-goto-login-btn');
+  if (confirmGotoLoginBtn) {
+    confirmGotoLoginBtn.addEventListener('click', function(){
+      resetLoginForm();
+      // 切换到登录模式
+      if (!isLoginMode) window.toggleLoginMode();
+    });
+  }
+
+  var confirmSkipBtn = document.getElementById('confirm-skip-btn');
+  if (confirmSkipBtn) {
+    confirmSkipBtn.addEventListener('click', function(){
+      resetLoginForm();
+      window.toggleLoginDialog(false);
+    });
+  }
+
   if (loginSubmitBtn) {
     loginSubmitBtn.addEventListener('click', function(e){
       e.preventDefault();
@@ -6676,6 +6770,21 @@ function renderEbbPreview(){
     }, 1500);
   }
 
+  // 发放首次注册奖励（仅在邮箱确认后调用）
+  function giveFirstLoginBonus() {
+    try {
+      var yueliData = loadYueli();
+      if (!yueliData.firstLoginBonus) {
+        gainYueli(100, '新用户注册奖励');
+        yueliData.firstLoginBonus = true;
+        saveYueli(yueliData);
+        showLoginToast('注册成功！赠送 100 成知 🎁');
+      }
+    } catch(e) {
+      console.warn('[Login] 发放奖励失败', e);
+    }
+  }
+
   // 处理 Supabase 邮件确认重定向（#access_token=...）
   (async function handleEmailConfirmRedirect() {
     var hash = window.location.hash.substring(1); // 去掉 #
@@ -6689,6 +6798,8 @@ function renderEbbPreview(){
           await updateLoginUI();
           // 同步数据到云端
           await window.SupabaseSync.saveCloudData();
+          // 新用户注册奖励（邮箱确认后才发放）
+          giveFirstLoginBonus();
           showLoginToast('邮箱确认成功，数据已备份到云端');
           console.log('[App] 邮件确认完成');
         } else {
@@ -6698,6 +6809,7 @@ function renderEbbPreview(){
             if (s) {
               await updateLoginUI();
               await window.SupabaseSync.saveCloudData();
+              giveFirstLoginBonus();
               showLoginToast('邮箱确认成功，数据已备份到云端');
             } else {
               console.warn('[App] 邮件确认后未能获取 session');

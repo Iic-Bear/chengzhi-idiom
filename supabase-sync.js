@@ -90,6 +90,20 @@ async function signIn(email, password) {
   return data;
 }
 
+// ---------- 重新发送确认邮件 ----------
+async function resendConfirmation(email) {
+  await initSupabase();
+  const { error } = await _sbClient.auth.resend({
+    type: 'signup',
+    email,
+    options: {
+      emailRedirectTo: 'https://iic-bear.github.io/chengzhi-idiom/index.html'
+    }
+  });
+  if (error) throw error;
+  return true;
+}
+
 // ---------- 登出 ----------
 async function signOut() {
   await initSupabase();
@@ -296,6 +310,7 @@ window.SupabaseSync = {
   signUp,
   signIn,
   signOut,
+  resendConfirmation,
   saveCloudData,
   loadCloudData,
   setupAuthListener
