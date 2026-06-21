@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rizhi-v4';
+const CACHE_NAME = 'rizhi-v5';
 const ASSETS = [
   './index.html',
   './manifest.json',
