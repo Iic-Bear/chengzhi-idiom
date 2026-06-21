@@ -2477,7 +2477,7 @@
   <header class="header" id="main-header">
     <div class="header-left">
         <div class="header-title-wrap" id="header-title-wrap">
-          <div class="header-title-main" id="header-title-main">成知</div>
+          <div class="header-title-main" id="header-title-main">登录</div>
           <div class="header-title-sub">CHENG ZHI <span class="level-badge" id="level-display" onclick="toggleLevelPanel(event)">V1</span></div>
         </div>
       <div class="header-yueli" id="header-yueli-btn" onclick="playCardTapSound();toggleYueliPanel(event)">
@@ -6856,8 +6856,8 @@ function renderEbbPreview(){
 
   // 初始化：检查登录状态
   window.SupabaseSync.getSession().then(function(session){
+    updateLoginUI();  // 不管是否登录都要更新UI（未登录显示"登录"）
     if (session) {
-      updateLoginUI();
       // 先从云端拉取当前用户数据（防止本地残留上一位用户的数据），再上传
       window.SupabaseSync.loadCloudData().catch(function(e){
         console.warn('[App] 启动时加载云端数据失败', e);
@@ -6867,7 +6867,9 @@ function renderEbbPreview(){
         });
       });
     }
-  }).catch(function(){});
+  }).catch(function(){
+    updateLoginUI();  // getSession 失败时也要更新UI
+  });
 
 })();
 </script>
