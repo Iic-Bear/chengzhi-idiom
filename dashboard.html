@@ -457,11 +457,30 @@ function resetKey() {
 
 // ---------- Init ----------
 async function initDashboard() {
-  // 1. 先检查是否有保存的密钥（直连模式）
+  // 1. 检查是否有保存的密钥（直连模式）
   const savedKey = localStorage.getItem('cz_dashboard_key');
   if (savedKey) {
+    // sb_secret_ 格式在浏览器端被 Supabase 禁止，直接跳过
+    if (savedKey.startsWith('sb_secret_')) {
+      console.log('[Dashboard] 检测到 sb_secret_ 格式密钥，浏览器端不可用，需要代理');
+      localStorage.removeItem('cz_dashboard_key'); // 清除无效密钥
+      document.getElementById('setupOverlay').classList.remove('hidden');
+      document.getElementById('mainContent').classList.add('hidden');
+      // 更新提示文字
+      const warning = document.querySelector('.setup-card .warning');
+      if (warning) {
+        warning.innerHTML = `
+          ⚠️ <strong>密钥格式已更新：</strong>Supabase 新版本密钥（sb_secret_...）<strong>禁止在浏览器端直接使用</strong>。<br><br>
+          📌 <strong>请通过代理服务器访问数据看板：</strong><br>
+          ① 终端运行：<code>node dashboard-proxy.js</code><br>
+          ② 将密钥写入 <code>.service-key.txt</code><br>
+          ③ 打开 <code>http://localhost:8081/dashboard.html</code>
+        `;
+      }
+      return;
+    }
+    // 旧格式 eyJ... 密钥，尝试直连
     window.SUPABASE_KEY = savedKey;
-    // 有密钥就直接进，数据加载时发现密钥无效会报错
     document.getElementById('setupOverlay').classList.add('hidden');
     document.getElementById('mainContent').classList.remove('hidden');
     document.getElementById('statusDot').className = 'status-dot connected';
@@ -512,11 +531,24 @@ async function saveKey() {
     });
 
     if (!res.ok) {
-      // 显示 Supabase 返回的具体错误
       let errBody = '';
       try { errBody = await res.text(); } catch(e) {}
       btn.textContent = origText;
       btn.disabled = false;
+
+      // 检测 Supabase 新安全策略：secret key 禁止在浏览器使用
+      if (errBody && errBody.includes('Forbidden use of secret API key in browser')) {
+        alert('⚠️ Supabase 安全策略更新\n\n' +
+              '你的密钥格式是 sb_secret_...，Supabase 已禁止在浏览器中直接使用此格式的密钥。\n\n' +
+              '📌 解决方法：启动本地代理服务器，让密钥留在服务器端。\n\n' +
+              '操作步骤：\n' +
+              '① 在项目目录打开终端\n' +
+              '② 运行：node dashboard-proxy.js\n' +
+              '③ 将密钥写入 .service-key.txt 文件\n' +
+              '④ 然后打开 http://localhost:8081/dashboard.html');
+        return;
+      }
+
       alert('❌ 密钥验证失败 HTTP ' + res.status + '\n' +
             'Supabase 返回: ' + (errBody || '(无响应体)') + '\n\n' +
             '请确认：\n' +
