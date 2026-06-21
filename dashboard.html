@@ -457,7 +457,35 @@ function resetKey() {
 
 // ---------- Init ----------
 async function initDashboard() {
-  // 1. 检查是否有保存的密钥（直连模式）
+  // 0. 优先检测代理模式：如果当前就是通过代理访问的，直接走代理
+  const isProxyMode = (window.location.host === 'localhost:8081' || window.location.port === '8081');
+  if (isProxyMode) {
+    // 代理模式下清除可能存在的无效 localStorage 密钥
+    const oldKey = localStorage.getItem('cz_dashboard_key');
+    if (oldKey && oldKey.startsWith('sb_secret_')) {
+      localStorage.removeItem('cz_dashboard_key');
+    }
+    try {
+      const test = await fetch(PROXY_BASE + '/api/progress', { signal: AbortSignal.timeout(3000) });
+      if (test.ok) {
+        document.getElementById('setupOverlay').classList.add('hidden');
+        document.getElementById('mainContent').classList.remove('hidden');
+        document.getElementById('statusDot').className = 'status-dot connected';
+        document.getElementById('statusLabel').textContent = '已连接（代理）';
+        document.getElementById('btnRefresh').disabled = false;
+        document.getElementById('btnExport').disabled = false;
+        refreshDashboard();
+        return;
+      }
+    } catch(e) {
+      alert('⚠️ 代理服务器未启动或不可达。\n\n请在终端运行：\nnode dashboard-proxy.js\n\n然后刷新页面。');
+      document.getElementById('setupOverlay').classList.remove('hidden');
+      document.getElementById('mainContent').classList.add('hidden');
+      return;
+    }
+  }
+
+  // 1. 非代理模式下，检查是否有保存的密钥（直连模式）
   const savedKey = localStorage.getItem('cz_dashboard_key');
   if (savedKey) {
     // sb_secret_ 格式在浏览器端被 Supabase 禁止，直接跳过
@@ -491,7 +519,7 @@ async function initDashboard() {
     return;
   }
 
-  // 2. 再检查代理是否可达
+  // 2. 再检查代理是否可达（非代理模式下的后备方案）
   try {
     const test = await fetch(PROXY_BASE + '/api/progress', { signal: AbortSignal.timeout(2000) });
     if (test.ok) {
