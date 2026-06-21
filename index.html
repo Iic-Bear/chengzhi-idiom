@@ -6518,9 +6518,11 @@ function renderEbbPreview(){
       }
     } catch (err) {
       var msg = err.message || '';
-      // "User already registered" → 可能是之前注册但未确认邮箱，也显示确认邮件屏幕
+      // "User already registered" → 可能是之前注册但未确认邮箱
       if (msg.indexOf('already registered') !== -1 || msg.indexOf('already exists') !== -1 || msg.indexOf('已注册') !== -1 || msg.indexOf('already been registered') !== -1) {
         showConfirmEmailScreen(email);
+      } else if (msg.indexOf('rate limit') !== -1 || msg.indexOf('too many') !== -1 || msg.indexOf('429') !== -1) {
+        loginError.textContent = '邮件发送频率限制，请等待 1~2 分钟后再试';
       } else {
         loginError.textContent = msg || '操作失败';
       }
