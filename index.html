@@ -6505,7 +6505,11 @@ function renderEbbPreview(){
         await window.SupabaseSync.signIn(email, password);
         loginError.textContent = '';
         window.toggleLoginDialog(false);
-        window.SupabaseSync.saveCloudData().catch(function(e){ console.warn('自动备份失败', e); });
+        // 登录后先从云同步当前用户数据（覆盖上个用户的本地残留），再上传
+        window.SupabaseSync.loadCloudData().catch(function(e){ console.warn('加载云端数据失败', e); })
+          .then(function(){
+            window.SupabaseSync.saveCloudData().catch(function(e){ console.warn('自动备份失败', e); });
+          });
         updateLoginUI();
         showLoginToast('登录成功');
       } else {
@@ -6514,10 +6518,11 @@ function renderEbbPreview(){
         // 尝试获取 session：如果 Supabase 关闭了邮箱确认，注册后直接有 session
         var session = await window.SupabaseSync.getSession();
         if (session) {
-          // 注册即登录 → 给奖励 + 备份 + 关闭弹窗
+          // 注册即登录 → 给奖励 + 同步 + 关闭弹窗
           window.toggleLoginDialog(false);
           giveFirstLoginBonus();
-          await window.SupabaseSync.saveCloudData().catch(function(e){ console.warn('自动备份失败', e); });
+          // 新用户首次注册，云端应该为空；保存本地数据到云
+          window.SupabaseSync.saveCloudData().catch(function(e){ console.warn('自动备份失败', e); });
           updateLoginUI();
           showLoginToast('注册成功！');
         } else {
@@ -6562,7 +6567,9 @@ function renderEbbPreview(){
 
   window.toggleProfilePanel = function(show) {
     if (show) {
-      loadProfile();
+      loadProfile();  // 先本地加载（快速显示上次缓存）
+      // 同时从云端拉取当前用户的资料（解决切换用户后仍显示上一位用户资料的问题）
+      refreshProfileFromCloud();
       if (profileMask) profileMask.classList.add('open');
       if (profilePanel) profilePanel.classList.add('open');
     } else {
@@ -6596,6 +6603,23 @@ function renderEbbPreview(){
       }
     } else if (profileRewardBanner) {
       profileRewardBanner.style.display = 'none';
+    }
+  }
+
+  // 从云端刷新个人资料（用于切换用户后显示正确数据）
+  async function refreshProfileFromCloud() {
+    try {
+      var user = await window.SupabaseSync.getUser();
+      if (!user) return;  // 未登录，保持 localStorage 数据
+      var cloudProfile = await window.SupabaseSync.loadProfileOnly();
+      if (cloudProfile) {
+        localStorage.setItem('riZhiLu_profile', JSON.stringify(cloudProfile));
+        // 重新渲染界面
+        loadProfile();
+      }
+    } catch(e) {
+      // 云端不可达时保持本地数据
+      console.warn('[Profile] 云端刷新失败', e);
     }
   }
 
@@ -6834,9 +6858,13 @@ function renderEbbPreview(){
   window.SupabaseSync.getSession().then(function(session){
     if (session) {
       updateLoginUI();
-      // 每次启动且有有效 session 时，自动同步本地数据到云端
-      window.SupabaseSync.saveCloudData().catch(function(e){
-        console.warn('[App] 启动时自动同步失败', e);
+      // 先从云端拉取当前用户数据（防止本地残留上一位用户的数据），再上传
+      window.SupabaseSync.loadCloudData().catch(function(e){
+        console.warn('[App] 启动时加载云端数据失败', e);
+      }).then(function(){
+        window.SupabaseSync.saveCloudData().catch(function(e){
+          console.warn('[App] 启动时自动同步失败', e);
+        });
       });
     }
   }).catch(function(){});

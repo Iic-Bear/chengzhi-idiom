@@ -325,6 +325,28 @@ async function loadCloudData() {
   return loadedCount;
 }
 
+// ---------- 轻量级：只拉取当前用户的个人资料 ----------
+//  调用时机：打开个人资料面板时（不需要下载全部数据）
+async function loadProfileOnly() {
+  await initSupabase();
+  const user = await getUser();
+  if (!user) return null;
+
+  const { data, error } = await _sbClient
+    .from('user_settings')
+    .select('setting_value')
+    .eq('user_id', user.id)
+    .eq('setting_key', 'profile')
+    .maybeSingle();
+
+  if (error || !data) return null;
+  try {
+    return JSON.parse(data.setting_value);
+  } catch(e) {
+    return null;
+  }
+}
+
 // ---------- 监听认证状态变化 ----------
 function setupAuthListener(callback) {
   initSupabase().then(client => {
@@ -347,6 +369,7 @@ window.SupabaseSync = {
   resendConfirmation,
   saveCloudData,
   loadCloudData,
+  loadProfileOnly,
   setupAuthListener
 };
 
