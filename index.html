@@ -6598,6 +6598,7 @@ function renderEbbPreview(){
       // 检查是否已填过资料（老用户）
       if (p.nickname && p.gender && p.birthday) {
         localStorage.setItem('riZhiLu_profileReward', '1');
+        profileRewardBanner.style.display = 'none';
       } else {
         profileRewardBanner.style.display = 'block';
       }
