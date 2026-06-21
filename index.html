@@ -6676,6 +6676,45 @@ function renderEbbPreview(){
     }, 1500);
   }
 
+  // 处理 Supabase 邮件确认重定向（#access_token=...）
+  (async function handleEmailConfirmRedirect() {
+    var hash = window.location.hash.substring(1); // 去掉 #
+    var params = new URLSearchParams(hash);
+    if (params.get('access_token') && params.get('type') === 'signup') {
+      console.log('[App] 检测到邮件确认重定向，正在建立会话…');
+      try {
+        // 等待 Supabase SDK 初始化
+        var session = await window.SupabaseSync.getSession();
+        if (session) {
+          await updateLoginUI();
+          // 同步数据到云端
+          await window.SupabaseSync.saveCloudData();
+          showLoginToast('邮箱确认成功，数据已备份到云端');
+          console.log('[App] 邮件确认完成');
+        } else {
+          // SDK 可能还没处理完 hash，稍后重试
+          setTimeout(async function() {
+            var s = await window.SupabaseSync.getSession();
+            if (s) {
+              await updateLoginUI();
+              await window.SupabaseSync.saveCloudData();
+              showLoginToast('邮箱确认成功，数据已备份到云端');
+            } else {
+              console.warn('[App] 邮件确认后未能获取 session');
+            }
+          }, 2000);
+        }
+      } catch(e) {
+        console.warn('[App] 邮件确认处理出错', e);
+      }
+      // 清理 URL hash，避免刷新时重复处理
+      if (window.history && window.history.replaceState) {
+        var cleanUrl = window.location.pathname + window.location.search;
+        window.history.replaceState({}, '', cleanUrl);
+      }
+    }
+  })();
+
   // 初始化：检查登录状态
   window.SupabaseSync.getSession().then(function(session){
     if (session) { updateLoginUI(); }

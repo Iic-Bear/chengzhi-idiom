@@ -71,7 +71,13 @@ async function getUser() {
 // ---------- 注册 ----------
 async function signUp(email, password) {
   await initSupabase();
-  const { data, error } = await _sbClient.auth.signUp({ email, password });
+  const { data, error } = await _sbClient.auth.signUp({ 
+    email, 
+    password,
+    options: {
+      emailRedirectTo: 'https://iic-bear.github.io/chengzhi-idiom/index.html'
+    }
+  });
   if (error) throw error;
   return data;
 }
