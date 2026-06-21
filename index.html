@@ -6504,12 +6504,11 @@ function renderEbbPreview(){
       if (isLoginMode) {
         await window.SupabaseSync.signIn(email, password);
         loginError.textContent = '';
+        // 先从云同步当前用户数据（覆盖上个用户的本地残留），完成后再关弹窗
+        await window.SupabaseSync.loadCloudData().catch(function(e){ console.warn('加载云端数据失败', e); });
         window.toggleLoginDialog(false);
-        // 登录后先从云同步当前用户数据（覆盖上个用户的本地残留），再上传
-        window.SupabaseSync.loadCloudData().catch(function(e){ console.warn('加载云端数据失败', e); })
-          .then(function(){
-            window.SupabaseSync.saveCloudData().catch(function(e){ console.warn('自动备份失败', e); });
-          });
+        // 再上传本地数据到云端（确保是最新合并后的数据）
+        window.SupabaseSync.saveCloudData().catch(function(e){ console.warn('自动备份失败', e); });
         updateLoginUI();
         showLoginToast('登录成功');
       } else {
@@ -6521,7 +6520,9 @@ function renderEbbPreview(){
           // 注册即登录 → 给奖励 + 同步 + 关闭弹窗
           window.toggleLoginDialog(false);
           giveFirstLoginBonus();
-          // 新用户首次注册，云端应该为空；保存本地数据到云
+          // 新用户首次注册，清除 localStorage 中可能残留的上一个用户的个人资料
+          localStorage.removeItem('riZhiLu_profile');
+          // 保存本地数据到云（不含上一个用户的资料）
           window.SupabaseSync.saveCloudData().catch(function(e){ console.warn('自动备份失败', e); });
           updateLoginUI();
           showLoginToast('注册成功！');
@@ -6615,9 +6616,12 @@ function renderEbbPreview(){
       var cloudProfile = await window.SupabaseSync.loadProfileOnly();
       if (cloudProfile) {
         localStorage.setItem('riZhiLu_profile', JSON.stringify(cloudProfile));
-        // 重新渲染界面
-        loadProfile();
+      } else {
+        // 当前用户在云端没有资料 → 清空 localStorage 残留（上一个用户的数据）
+        localStorage.removeItem('riZhiLu_profile');
       }
+      // 重新渲染界面（无论云端是否有资料）
+      loadProfile();
     } catch(e) {
       // 云端不可达时保持本地数据
       console.warn('[Profile] 云端刷新失败', e);

@@ -300,26 +300,38 @@ async function loadCloudData() {
     console.log('[Supabase] 恢复复习日志：' + reviewData.length + ' 条');
   }
 
-  // 3. 设置项（始终用云端版本）
+  // 3. 设置项（始终用云端版本；未找到的 key 清空本地残留）
   const { data: settingsData, error: sErr } = await _sbClient
     .from('user_settings')
     .select('*')
     .eq('user_id', userId);
 
+  // 用户专属设置键 → localStorage key 映射（用于清理上一个用户的残留数据）
+  const USER_SETTING_MAP = {
+    plan:    'riZhiLu_plan',
+    yueli:   'riZhiLu_yueli',
+    favorites: 'riZhiLu_favorites',
+    profile: 'riZhiLu_profile'
+  };
+  const foundKeys = {};
+
   if (!sErr && settingsData && settingsData.length > 0) {
     settingsData.forEach(row => {
-      if (row.setting_key === 'plan') {
-        localStorage.setItem('riZhiLu_plan', row.setting_value);
-      } else if (row.setting_key === 'yueli') {
-        localStorage.setItem('riZhiLu_yueli', row.setting_value);
-      } else if (row.setting_key === 'favorites') {
-        localStorage.setItem('riZhiLu_favorites', row.setting_value);
-      } else if (row.setting_key === 'profile') {
-        localStorage.setItem('riZhiLu_profile', row.setting_value);
+      const localKey = USER_SETTING_MAP[row.setting_key];
+      if (localKey) {
+        localStorage.setItem(localKey, row.setting_value);
+        foundKeys[row.setting_key] = true;
       }
     });
     console.log('[Supabase] 恢复设置：' + settingsData.length + ' 项');
   }
+
+  // 清理：当前用户在云端没有的设置项 → 清空 localStorage（避免显示上一位用户的数据）
+  Object.keys(USER_SETTING_MAP).forEach(key => {
+    if (!foundKeys[key]) {
+      localStorage.removeItem(USER_SETTING_MAP[key]);
+    }
+  });
 
   console.log('[Supabase] 云端恢复完成，共恢复 ' + loadedCount + ' 条数据');
   return loadedCount;
