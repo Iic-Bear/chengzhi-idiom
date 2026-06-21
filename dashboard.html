@@ -642,8 +642,8 @@ async function refreshDashboard() {
 
     console.log('[Dashboard] progress:', progress?.length, 'reviews:', reviews?.length, 'users:', Object.keys(userMap || {}).length);
 
-    // --- If no data at all ---
-    if ((!progress || progress.length === 0) && (!reviews || reviews.length === 0)) {
+    // --- If no data at all (no users registered and no progress/reviews) ---
+    if ((!progress || progress.length === 0) && (!reviews || reviews.length === 0) && (!userMap || Object.keys(userMap).length === 0)) {
       document.getElementById('loadingCard').classList.add('hidden');
       document.getElementById('emptyState').classList.remove('hidden');
       return;
@@ -679,17 +679,28 @@ async function refreshDashboard() {
       }
     });
 
-    const userIds = Object.keys(userProgressMap);
+    // 包含所有注册用户（含没有学习记录的用户）
+    const allUserIds = new Set([...Object.keys(userProgressMap), ...Object.keys(userMap || {})]);
+    const userIds = Array.from(allUserIds);
+    // 为没有学习记录的用户初始化空数据
+    allUserIds.forEach(uid => {
+      if (!userProgressMap[uid]) userProgressMap[uid] = new Set();
+      if (!userReviewMap[uid]) userReviewMap[uid] = 0;
+      if (!userLatestMap[uid]) userLatestMap[uid] = null;
+    });
     const totalUsers = userIds.length;
-    const totalIdioms = new Set(
+    // 所有用户学习的成语记录总数（含跨用户重复）
+    const totalLearnedAll = userIds.reduce((sum, uid) => sum + (userProgressMap[uid]?.size || 0), 0);
+    // 所有用户学过的去重成语总数
+    const totalIdiomsUnique = new Set(
       [...(progress || []).map(r => r.idiom_id), ...(reviews || []).filter(r => r.first_learn_time).map(r => r.idiom_id)]
     ).size;
-    const avgIdioms = totalUsers > 0 ? Math.round(totalIdioms / totalUsers) : 0;
+    const avgIdioms = totalUsers > 0 ? Math.round(totalLearnedAll / totalUsers) : 0;
     const totalReviews = Object.values(userReviewMap).reduce((a, b) => a + b, 0);
 
     // --- Update Stat Cards ---
     animateValue('statUsers', totalUsers);
-    animateValue('statIdioms', totalIdioms);
+    animateValue('statIdioms', totalIdiomsUnique);
     animateValue('statAvg', avgIdioms);
     animateValue('statReviews', totalReviews);
 

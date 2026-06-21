@@ -6841,7 +6841,13 @@ function renderEbbPreview(){
 
   // 初始化：检查登录状态
   window.SupabaseSync.getSession().then(function(session){
-    if (session) { updateLoginUI(); }
+    if (session) {
+      updateLoginUI();
+      // 每次启动且有有效 session 时，自动同步本地数据到云端
+      window.SupabaseSync.saveCloudData().catch(function(e){
+        console.warn('[App] 启动时自动同步失败', e);
+      });
+    }
   }).catch(function(){});
 
 })();
