@@ -302,7 +302,7 @@
       ⚠️ <strong>安全提醒：</strong>此密钥拥有数据库全部权限，仅保存在你本地浏览器中，<strong>切勿部署到线上或分享给他人。</strong>
     </div>
     <label>Service Role Key</label>
-    <input type="password" id="keyInput" placeholder="eyJhbGciOi...（以 eyJ 开头）">
+    <input type="password" id="keyInput" placeholder="sb_secret_...（service_role secret）">
     <button class="btn btn-primary" onclick="saveKey()" style="width:100%">连接看板</button>
   </div>
 </div>
@@ -386,22 +386,49 @@
 
 const IS_PROXY = (window.DASHBOARD_MODE === 'proxy');
 const PROXY_BASE = window.PROXY_BASE || '';
+const SUPABASE_URL = 'https://hycakfuryhapteopgmrk.supabase.co';
+const SUPABASE_REST = SUPABASE_URL + '/rest/v1';
+const SUPABASE_AUTH = SUPABASE_URL + '/auth/v1';
 let charts = {};
 
-// ---------- 数据获取 ----------
+function isDirectMode() { return !!window.SUPABASE_KEY; }
+function getSupabaseHeaders() {
+  const key = window.SUPABASE_KEY || '';
+  return { 'apikey': key, 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' };
+}
+
+// ---------- 数据获取（支持代理 / 直连双模式）----------
 async function getProgress() {
+  if (isDirectMode()) {
+    const res = await fetch(SUPABASE_REST + '/user_progress?select=*', { headers: getSupabaseHeaders() });
+    if (!res.ok) throw new Error('user_progress ' + res.status);
+    return await res.json();
+  }
   const res = await fetch(PROXY_BASE + '/api/progress');
   if (!res.ok) throw new Error('/api/progress ' + res.status);
   return await res.json();
 }
 
 async function getReviews() {
+  if (isDirectMode()) {
+    const res = await fetch(SUPABASE_REST + '/user_review_log?select=*', { headers: getSupabaseHeaders() });
+    if (!res.ok) throw new Error('user_review_log ' + res.status);
+    return await res.json();
+  }
   const res = await fetch(PROXY_BASE + '/api/reviews');
   if (!res.ok) throw new Error('/api/reviews ' + res.status);
   return await res.json();
 }
 
 async function getUsers() {
+  if (isDirectMode()) {
+    const res = await fetch(SUPABASE_AUTH + '/admin/users?per_page=1000', { headers: getSupabaseHeaders() });
+    if (!res.ok) return {};
+    const data = await res.json();
+    const map = {};
+    (data.users || []).forEach(u => { map[u.id] = u.email || u.id.substring(0, 8) + '…'; });
+    return map;
+  }
   const res = await fetch(PROXY_BASE + '/api/users');
   if (!res.ok) return {};
   return await res.json();
@@ -414,31 +441,126 @@ function displayUser(userId, userMap) {
   return userId.substring(0, 8) + '…';
 }
 
+// ---------- 重置密钥 ----------
+function resetKey() {
+  // 清除旧密钥
+  localStorage.removeItem('cz_dashboard_key');
+  window.SUPABASE_KEY = '';
+  // 显示密钥输入界面
+  document.getElementById('setupOverlay').classList.remove('hidden');
+  document.getElementById('mainContent').classList.add('hidden');
+  // 清空之前的输入
+  var input = document.getElementById('keyInput');
+  if (input) input.value = '';
+  input && input.focus();
+}
+
 // ---------- Init ----------
 async function initDashboard() {
-  // 代理模式下不需要输入密钥，直接连接
-  document.getElementById('setupOverlay').classList.add('hidden');
-  document.getElementById('mainContent').classList.remove('hidden');
-
-  try {
-    // 快速测试连通性
-    const test = await fetch(PROXY_BASE + '/api/progress');
-    if (!test.ok) throw new Error('proxy test ' + test.status);
+  // 1. 先检查是否有保存的密钥（直连模式）
+  const savedKey = localStorage.getItem('cz_dashboard_key');
+  if (savedKey) {
+    window.SUPABASE_KEY = savedKey;
+    // 有密钥就直接进，数据加载时发现密钥无效会报错
+    document.getElementById('setupOverlay').classList.add('hidden');
+    document.getElementById('mainContent').classList.remove('hidden');
     document.getElementById('statusDot').className = 'status-dot connected';
-    document.getElementById('statusLabel').textContent = '已连接';
+    document.getElementById('statusLabel').textContent = '已连接（直连）';
     document.getElementById('btnRefresh').disabled = false;
     document.getElementById('btnExport').disabled = false;
-  } catch (e) {
-    console.error('代理连接失败:', e);
-    alert('❌ 代理连接失败\n' + (e.message || '') + '\n\n请检查：\n1. dashboard-proxy.js 是否已启动\n2. 按 F12 看 Console');
-    document.getElementById('statusDot').className = 'status-dot disconnected';
-    document.getElementById('statusLabel').textContent = '代理未启动';
-    document.getElementById('btnRefresh').disabled = true;
-    document.getElementById('btnExport').disabled = true;
+    refreshDashboard();
     return;
   }
 
-  await refreshDashboard();
+  // 2. 再检查代理是否可达
+  try {
+    const test = await fetch(PROXY_BASE + '/api/progress', { signal: AbortSignal.timeout(2000) });
+    if (test.ok) {
+      document.getElementById('setupOverlay').classList.add('hidden');
+      document.getElementById('mainContent').classList.remove('hidden');
+      await checkConnection();
+      return;
+    }
+  } catch(e) {}
+
+  // 3. 代理不可达且没有密钥，显示密钥输入界面
+  document.getElementById('setupOverlay').classList.remove('hidden');
+  document.getElementById('mainContent').classList.add('hidden');
+}
+
+// ---------- 保存密钥 ----------
+async function saveKey() {
+  const input = document.getElementById('keyInput');
+  const key = input && input.value && input.value.trim();
+  if (!key) { alert('请输入密钥'); return; }
+
+  // 点击后显示加载状态
+  const btn = document.querySelector('.setup-card .btn-primary');
+  const origText = btn.textContent;
+  btn.textContent = '⏳ 正在验证密钥…';
+  btn.disabled = true;
+
+  // 先测试密钥：尝试查询 user_progress 表（limit 1）
+  try {
+    const testUrl = SUPABASE_REST + '/user_progress?limit=1';
+    const res = await fetch(testUrl, {
+      headers: {
+        'apikey': key,
+        'Authorization': 'Bearer ' + key,
+        'Prefer': 'return=minimal'
+      }
+    });
+
+    if (!res.ok) {
+      // 显示 Supabase 返回的具体错误
+      let errBody = '';
+      try { errBody = await res.text(); } catch(e) {}
+      btn.textContent = origText;
+      btn.disabled = false;
+      alert('❌ 密钥验证失败 HTTP ' + res.status + '\n' +
+            'Supabase 返回: ' + (errBody || '(无响应体)') + '\n\n' +
+            '请确认：\n' +
+            '① 复制的是 service_role secret（不是 publishable key）\n' +
+            '② 密钥完整，没有漏掉或多余字符\n' +
+            '③ 密钥未被 "Turn" 重置过\n' +
+            '④ Supabase 项目未被暂停（Pause）');
+      return;
+    }
+
+    console.log('[Dashboard] 密钥验证通过 ✓');
+  } catch (e) {
+    btn.textContent = origText;
+    btn.disabled = false;
+    alert('⛔ 无法连接到 Supabase\n' + e.message + '\n\n请检查网络，或确认项目 URL 正确。');
+    return;
+  }
+
+  // 密钥有效，保存并进入看板
+  localStorage.setItem('cz_dashboard_key', key);
+  window.SUPABASE_KEY = key;
+  document.getElementById('setupOverlay').classList.add('hidden');
+  document.getElementById('mainContent').classList.remove('hidden');
+  document.getElementById('statusDot').className = 'status-dot connected';
+  document.getElementById('statusLabel').textContent = '已连接（直连）';
+  document.getElementById('btnRefresh').disabled = false;
+  document.getElementById('btnExport').disabled = false;
+  refreshDashboard();
+}
+
+// ---------- 检查连接状态 ----------
+// ---------- 检查连接状态 ----------
+async function checkConnection() {
+  const key = localStorage.getItem('cz_dashboard_key') || window.SUPABASE_KEY;
+  if (!key) return false;
+  // 简单标记为连接状态，数据加载时出错会自然暴露
+  if (key) {
+    document.getElementById('statusDot').className = 'status-dot connected';
+    document.getElementById('statusLabel').textContent = '已连接（直连）';
+    document.getElementById('btnRefresh').disabled = false;
+    document.getElementById('btnExport').disabled = false;
+    return true;
+  }
+  return false;
 }
 
 // ---------- Dashboard Refresh ----------
@@ -631,7 +753,16 @@ async function refreshDashboard() {
   } catch (e) {
     console.error('查询失败', e);
     document.getElementById('loadingCard').classList.add('hidden');
-    alert('数据查询失败：' + (e.message || '未知错误') + '\n请检查密钥是否正确。');
+    const msg = e.message || '未知错误';
+    let hint = '';
+    if (msg.includes('401')) {
+      hint = '\n\n💡 密钥可能已失效（被 Turn 重置过）。\n请点右上角"重置密钥"，重新复制 service_role secret。';
+    } else if (msg.includes('403')) {
+      hint = '\n\n💡 权限不足。请确认使用的是 service_role secret（非 publishable key）。';
+    } else if (msg.includes('fetch')) {
+      hint = '\n\n💡 网络连接失败。请检查是否可以访问 supabase.co。';
+    }
+    alert('数据查询失败：' + msg + hint);
   }
 }
 
