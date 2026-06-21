@@ -6440,7 +6440,7 @@ function renderEbbPreview(){
     } else {
       loginFormTitle.textContent = '注册成知';
       loginSubtitle.textContent = '注册后云端保存学习数据';
-      loginBonus.textContent = '注册即送 100 成知（确认邮箱后发放）';
+      loginBonus.textContent = '注册即送 100 成知';
       loginSubmitBtn.textContent = '注册';
       loginToggleBtn.textContent = '已有账号？去登录';
     }
@@ -6512,18 +6512,20 @@ function renderEbbPreview(){
         showLoginToast('登录成功');
       } else {
         await window.SupabaseSync.signUp(email, password);
+        // 注册成功后自动登录（如 Supabase 关闭了邮箱确认则立即生效）
+        await window.SupabaseSync.signIn(email, password);
         loginError.textContent = '';
-        // 不关闭弹窗，不立即给奖励 → 显示"确认邮件已发送"屏幕
-        showConfirmEmailScreen(email);
+        window.toggleLoginDialog(false);
+        window.SupabaseSync.saveCloudData().catch(function(e){ console.warn('自动备份失败', e); });
+        updateLoginUI();
+        giveFirstLoginBonus();
+        showLoginToast('注册成功，赠送 100 成知 🎁');
       }
     } catch (err) {
       var msg = err.message || '';
-      // "User already registered" → 可能是之前注册但未确认邮箱
-      if (msg.indexOf('already registered') !== -1 || msg.indexOf('already exists') !== -1 || msg.indexOf('已注册') !== -1 || msg.indexOf('already been registered') !== -1) {
-        showConfirmEmailScreen(email);
-      } else if (msg.indexOf('rate limit') !== -1 || msg.indexOf('too many') !== -1 || msg.indexOf('429') !== -1) {
-        loginError.textContent = '邮件发送频率限制，请等待 1~2 分钟后再试';
-      } else {
+      if (msg.indexOf('already registered') !== -1 || msg.indexOf('already exists') !== -1 || msg.indexOf('已注册') !== -1) {
+        loginError.textContent = '该邮箱已注册，请直接登录';
+      } else  {
         loginError.textContent = msg || '操作失败';
       }
     } finally {

@@ -71,13 +71,8 @@ async function getUser() {
 // ---------- 注册 ----------
 async function signUp(email, password) {
   await initSupabase();
-  const { data, error } = await _sbClient.auth.signUp({ 
-    email, 
-    password,
-    options: {
-      emailRedirectTo: 'https://iic-bear.github.io/chengzhi-idiom/index.html'
-    }
-  });
+  // emailRedirectTo 省略 → 由 Supabase 后台"邮箱确认"开关控制
+  const { data, error } = await _sbClient.auth.signUp({ email, password });
   if (error) throw error;
   return data;
 }
