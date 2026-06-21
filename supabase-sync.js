@@ -91,16 +91,50 @@ async function signIn(email, password) {
 }
 
 // ---------- 重新发送确认邮件 ----------
+//  使用 Supabase Auth REST API（不依赖 CDN SDK 版本的 resend 方法）
 async function resendConfirmation(email) {
-  await initSupabase();
-  const { error } = await _sbClient.auth.resend({
-    type: 'signup',
-    email,
-    options: {
-      emailRedirectTo: 'https://iic-bear.github.io/chengzhi-idiom/index.html'
+  // 优先尝试 SDK 方法（较新版本支持）
+  try {
+    await initSupabase();
+    if (typeof _sbClient.auth.resend === 'function') {
+      const { error } = await _sbClient.auth.resend({
+        type: 'signup',
+        email,
+        options: {
+          emailRedirectTo: 'https://iic-bear.github.io/chengzhi-idiom/index.html'
+        }
+      });
+      if (!error) { console.log('[Supabase] resend SDK OK'); return true; }
+      console.warn('[Supabase] SDK resend 返回错误，尝试 REST API', error);
+    } else {
+      console.log('[Supabase] SDK 无 resend 方法，使用 REST API');
     }
+  } catch(e) {
+    console.warn('[Supabase] SDK resend 失败，使用 REST API', e);
+  }
+
+  // 回退：直接用 Supabase Auth REST API（gotrue /resend 端点）
+  const url = SUPABASE_URL + '/auth/v1/resend';
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON_KEY
+    },
+    body: JSON.stringify({
+      type: 'signup',
+      email: email,
+      email_redirect_to: 'https://iic-bear.github.io/chengzhi-idiom/index.html'
+    })
   });
-  if (error) throw error;
+
+  if (!res.ok) {
+    const body = await res.text();
+    console.error('[Supabase] REST resend 失败 HTTP', res.status, body);
+    throw new Error('HTTP ' + res.status + (body ? ': ' + body.substring(0, 100) : ''));
+  }
+
+  console.log('[Supabase] REST resend 成功');
   return true;
 }
 

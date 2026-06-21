@@ -6721,14 +6721,24 @@ function renderEbbPreview(){
   if (confirmResendBtn) {
     confirmResendBtn.addEventListener('click', async function(){
       var email = loginEmail.value.trim();
+      // 优先从确认屏幕上显示的邮箱读取
+      var addrEl = document.getElementById('confirm-email-address');
+      if (!email && addrEl) email = addrEl.textContent.trim();
       if (!email) { showLoginToast('邮箱地址为空，请返回重新输入'); return; }
       confirmResendBtn.textContent = '正在重发…';
       confirmResendBtn.disabled = true;
       try {
         await window.SupabaseSync.resendConfirmation(email);
-        showLoginToast('确认邮件已重新发送');
+        showLoginToast('确认邮件已重新发送，请检查收件箱（含垃圾邮件）');
       } catch(e) {
-        alert('重发失败：' + (e.message || '未知错误') + '\n\n请检查邮箱地址是否正确。');
+        var errMsg = e.message || '未知错误';
+        alert('重发失败：' + errMsg + '\n\n'
+          + '可能原因：\n'
+          + '① 邮箱已确认过，无需再次确认\n'
+          + '② Supabase 频率限制，请等待 60 秒后再试\n'
+          + '③ 请检查邮箱地址是否正确\n\n'
+          + '如果多次失败，请去 Supabase 后台 → Authentication → Users\n'
+          + '手动删除该用户记录后，重新注册。');
       } finally {
         confirmResendBtn.textContent = '重新发送确认邮件';
         confirmResendBtn.disabled = false;
