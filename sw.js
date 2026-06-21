@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rizhi-v5';
+const CACHE_NAME = 'rizhi-v6';
 const ASSETS = [
   './index.html',
   './manifest.json',
@@ -34,7 +34,7 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// Fetch: cache-first for local assets, network-first for fonts
+// Fetch: network-first for HTML (always get latest), network-first for fonts, cache-first for other assets
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
@@ -46,7 +46,21 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Local assets: cache-first
+  // HTML (index.html): network-first to always show latest version
+  if (event.request.destination === 'document' || url.pathname.endsWith('.html')) {
+    event.respondWith(
+      fetch(event.request).then(response => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        }
+        return response;
+      }).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Other local assets: cache-first
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
