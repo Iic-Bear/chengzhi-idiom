@@ -2625,8 +2625,6 @@
       </div>
       <button class="profile-save-btn" id="profile-save-btn" onclick="saveProfile()">保存资料</button>
       <hr class="profile-divider">
-      <button class="profile-action-btn" id="profile-backup-btn" onclick="profileBackup()">☁️ 备份到云端</button>
-      <button class="profile-action-btn" id="profile-restore-btn" onclick="profileRestore()">📥 从云端恢复</button>
       <button class="profile-action-btn danger" id="profile-logout-btn" onclick="profileLogout()">退出登录</button>
     </div>
   </div>
@@ -6667,24 +6665,6 @@ function renderEbbPreview(){
       grid.appendChild(btn);
     });
   }
-
-  window.profileBackup = function() {
-    window.SupabaseSync.saveCloudData().then(function(){
-      showLoginToast('数据已备份到云端');
-    }).catch(function(err){
-      showLoginToast('备份失败：' + err.message);
-    });
-  };
-
-  window.profileRestore = function() {
-    if (!confirm('确定从云端恢复数据？\n\n此操作会用云端数据覆盖本地的学习进度和设置。')) return;
-    window.SupabaseSync.loadCloudData().then(function(count){
-      showLoginToast('已恢复 ' + count + ' 条数据，正在刷新...');
-      setTimeout(function(){ location.reload(); }, 1500);
-    }).catch(function(err){
-      showLoginToast('恢复失败：' + err.message);
-    });
-  };
 
   window.profileLogout = function() {
     window.SupabaseSync.signOut().then(function(){
