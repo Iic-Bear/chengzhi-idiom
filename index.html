@@ -12,7 +12,9 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- Twemoji: 统一 emoji 图标风格（Twitter 风格），跨平台一致显示 -->
+  <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous" defer></script>
 <style>
   :root {
     --manila: #F2E8D5; --manila-dk: #E8D9BC; --manila-lt: #FAF4E8;
@@ -2430,13 +2432,22 @@
     border-radius: var(--radius); cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     transition: background 0.15s, transform 0.1s;
-    padding: 0;
+    padding: 4px;
   }
   .profile-emoji-btn:active { transform: scale(0.9); }
   .profile-emoji-btn.selected {
     background: var(--ink); border-color: var(--ink);
   }
-  .profile-emoji-btn.selected span { filter: brightness(1.5); }
+  /* Twemoji 图片统一尺寸 */
+  .profile-emoji-btn img.emoji,
+  .profile-avatar img.emoji,
+  #header-title-main img.emoji {
+    width: 1.2em; height: 1.2em;
+    vertical-align: middle; display: inline-block;
+    pointer-events: none;
+  }
+  .profile-avatar img.emoji { width: 40px; height: 40px; }
+  .profile-emoji-btn img.emoji { width: 24px; height: 24px; }
   .profile-save-btn {
     width: 100%; padding: 12px 0;
     background: var(--ink); color: var(--manila);
@@ -6595,7 +6606,7 @@ function renderEbbPreview(){
     var raw = localStorage.getItem('riZhiLu_profile');
     var p = raw ? JSON.parse(raw) : {};
     selectedEmoji = p.avatar || '👤';
-    if (profileAvatarBtn) profileAvatarBtn.textContent = selectedEmoji;
+    setAvatarDisplay(selectedEmoji);  // 使用 Twemoji 统一渲染
     if (profileNickname) profileNickname.value = p.nickname || '';
     if (profileGender) profileGender.value = p.gender || '';
     if (profileBirthday) profileBirthday.value = p.birthday || '';
@@ -6686,6 +6697,37 @@ function renderEbbPreview(){
     }
   };
 
+  // ---- Twemoji 工具函数 ----
+  // 把 emoji 字符转成 Twemoji SVG img 标签（跨平台统一风格）
+  function emojiToImg(emoji, size) {
+    size = size || 24;
+    var codePoint = twemojiCodePoint(emoji);
+    if (!codePoint) return '<span>' + emoji + '</span>';
+    var url = 'https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/assets/svg/' + codePoint + '.svg';
+    return '<img class="emoji" src="' + url + '" alt="' + emoji + '" width="' + size + '" height="' + size + '">';
+  }
+
+  // 计算 Twemoji 使用的 codepoint 字符串（处理 emoji 组合序列）
+  function twemojiCodePoint(emoji) {
+    var codes = [];
+    var i = 0;
+    while (i < emoji.length) {
+      var code = emoji.codePointAt(i);
+      if (code === 0xFE0F) { i += 1; continue; } // 跳过变体选择符
+      codes.push(code.toString(16));
+      i += (code > 0xFFFF) ? 2 : 1;
+    }
+    // 过滤掉末尾的 fe0f
+    codes = codes.filter(function(c){ return c !== 'fe0f'; });
+    return codes.join('-');
+  }
+
+  // 更新头像显示区的 emoji
+  function setAvatarDisplay(emoji) {
+    if (!profileAvatarBtn) return;
+    profileAvatarBtn.innerHTML = emojiToImg(emoji, 40);
+  }
+
   function renderEmojiGrid() {
     var grid = document.getElementById('profile-emoji-grid');
     if (!grid || grid.children.length > 0) return;
@@ -6693,10 +6735,11 @@ function renderEbbPreview(){
     emojis.forEach(function(emoji){
       var btn = document.createElement('button');
       btn.className = 'profile-emoji-btn' + (emoji === selectedEmoji ? ' selected' : '');
-      btn.innerHTML = '<span>' + emoji + '</span>';
+      btn.innerHTML = emojiToImg(emoji, 24);
+      btn.title = emoji;
       btn.onclick = function(){
         selectedEmoji = emoji;
-        if (profileAvatarBtn) profileAvatarBtn.textContent = emoji;
+        setAvatarDisplay(emoji);
         var btns = grid.querySelectorAll('.profile-emoji-btn');
         btns.forEach(function(b){ b.classList.remove('selected'); });
         btn.classList.add('selected');
