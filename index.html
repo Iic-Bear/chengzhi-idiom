@@ -6703,7 +6703,7 @@ function renderEbbPreview(){
     size = size || 24;
     var codePoint = twemojiCodePoint(emoji);
     if (!codePoint) return '<span>' + emoji + '</span>';
-    var url = 'https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/assets/svg/' + codePoint + '.svg';
+    var url = 'https://twemoji.maxcdn.com/v/latest/svg/' + codePoint + '.svg';
     return '<img class="emoji" src="' + url + '" alt="' + emoji + '" width="' + size + '" height="' + size + '">';
   }
 
