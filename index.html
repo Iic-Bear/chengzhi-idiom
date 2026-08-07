@@ -3,12 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-<title>成知 · 成语卡</title>
+<title>成知 · 成语卡 — 每日一张成语卡片，轻松学成语</title>
+<meta name="description" content="成知是一款温暖的成语学习工具。每日一张成语卡片，拼字选卡、印章查证、艾宾浩斯复习，像翻纸质书一样学成语。支持离线使用，无需下载 App。">
 <meta name="theme-color" content="#1A1209">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="成知">
-<meta name="description" content="每日一张成语卡片，轻松学成语">
+<!-- Open Graph / 社交分享预览 -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="成知 · 成语卡 — 每日一张成语卡片">
+<meta property="og:description" content="温暖的成语学习工具。拼字选卡、印章查证、艾宾浩斯复习，像翻纸质书一样学成语。支持离线使用。">
+<meta property="og:image" content="https://iic-bear.github.io/chengzhi-idiom/icons/icon-512.png">
+<meta property="og:image:width" content="512">
+<meta property="og:image:height" content="512">
+<meta property="og:url" content="https://iic-bear.github.io/chengzhi-idiom/">
+<meta property="og:site_name" content="成知 · 成语卡">
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="成知 · 成语卡 — 每日一张成语卡片">
+<meta name="twitter:description" content="温暖的成语学习工具。拼字选卡、印章查证、艾宾浩斯复习，像翻纸质书一样学成语。">
+<meta name="twitter:image" content="https://iic-bear.github.io/chengzhi-idiom/icons/icon-512.png">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2481,6 +2495,122 @@
   .profile-reward-banner strong {
     font-family: var(--font-title); font-size: 16px; color: #2E6B3E;
   }
+
+  /* ── 数据加载遮罩 ── */
+  #data-loading-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    background: var(--manila);
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity 0.4s ease, visibility 0.4s ease;
+  }
+  #data-loading-overlay.done { opacity: 0; visibility: hidden; pointer-events: none; }
+  .data-loading-card {
+    text-align: center; padding: 40px 32px;
+    background: var(--manila-lt); border: var(--border-hvy) solid var(--ink);
+    border-radius: 12px; box-shadow: var(--shadow);
+    min-width: 260px;
+  }
+  .data-loading-icon { margin-bottom: 18px; animation: bookBounce 1.2s ease-in-out infinite; }
+  @keyframes bookBounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+  .data-loading-msg {
+    font-family: var(--font-title); font-size: 16px; font-weight: 700;
+    color: var(--ink); margin-bottom: 18px; letter-spacing: 0.08em;
+  }
+  .data-loading-track {
+    width: 100%; height: 6px; background: var(--manila-dk);
+    border-radius: 3px; overflow: hidden; border: 1px solid var(--ink);
+  }
+  .data-loading-fill {
+    height: 100%; background: var(--ink); border-radius: 2px;
+    width: 0%; transition: width 0.3s ease;
+  }
+
+  /* ── Toast 通知 ── */
+  .toast-container {
+    position: fixed; top: calc(var(--sat) + 16px); left: 50%;
+    transform: translateX(-50%); z-index: 10000;
+    display: flex; flex-direction: column; gap: 8px;
+    pointer-events: none; max-width: 90vw;
+  }
+  .toast {
+    padding: 11px 22px; border-radius: 8px; font-size: 13px; font-weight: 500;
+    font-family: var(--font-body); letter-spacing: 0.04em;
+    animation: toastIn 0.35s cubic-bezier(0.4,0,0.2,1), toastOut 0.3s ease 2.7s forwards;
+    pointer-events: auto; box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    text-align: center; line-height: 1.4;
+  }
+  .toast-success { background: #1B5E20; color: #E8F5E0; }
+  .toast-error   { background: #B71C1C; color: #FFEBEE; }
+  .toast-warning { background: #E65100; color: #FFF3E0; }
+  .toast-info    { background: #283593; color: #E8EAF6; }
+  @keyframes toastIn  { from { opacity:0; transform: translateY(-14px); } to { opacity:1; transform: translateY(0); } }
+  @keyframes toastOut { from { opacity:1; } to { opacity:0; } }
+
+  /* ── 插图骨架屏 ── */
+  .illus-skeleton {
+    width: 100%; height: 100%;
+    background: linear-gradient(110deg, var(--manila-dk) 30%, var(--manila-lt) 50%, var(--manila-dk) 70%);
+    background-size: 200% 100%;
+    animation: skeletonShimmer 1.6s ease-in-out infinite;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    border-radius: var(--radius);
+  }
+  .illus-skeleton svg { opacity: 0.25; }
+  .illus-skeleton span { font-size: 10px; color: var(--ink-light); letter-spacing: 0.12em; }
+  .illus-box img.loaded-img,
+  .detail-illus-img img.loaded-img { animation: imgFadeIn 0.4s ease; }
+  @keyframes skeletonShimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+  @keyframes imgFadeIn { from {opacity:0; transform:scale(0.97)} to {opacity:1; transform:scale(1)} }
+
+  /* ── 新手引导浮层 ── */
+  .onboarding-overlay {
+    position: fixed; inset: 0; z-index: 10001;
+    background: rgba(26,18,9,0.72);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; visibility: hidden;
+    transition: opacity 0.35s ease, visibility 0.35s ease;
+  }
+  .onboarding-overlay.show { opacity: 1; visibility: visible; }
+  .onboarding-card {
+    background: var(--manila-lt); border: var(--border-hvy) solid var(--ink);
+    border-radius: 14px; box-shadow: var(--shadow);
+    padding: 28px 24px 22px; max-width: 360px; width: 88vw;
+    text-align: center;
+  }
+  .onboarding-header { margin-bottom: 20px; }
+  .onboarding-emoji { font-size: 40px; display: block; margin-bottom: 8px; }
+  .onboarding-header h3 {
+    font-family: var(--font-title); font-size: 20px; font-weight: 900;
+    color: var(--ink); letter-spacing: 0.06em;
+  }
+  .onboarding-steps { text-align: left; margin-bottom: 22px; }
+  .onboarding-step {
+    display: flex; gap: 12px; padding: 10px 0;
+    border-bottom: 1px dotted var(--manila-dk);
+  }
+  .onboarding-step:last-child { border-bottom: none; }
+  .onboarding-step-num {
+    flex-shrink: 0; width: 28px; height: 28px;
+    background: var(--ink); color: var(--manila);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-title); font-size: 14px; font-weight: 700;
+    margin-top: 2px;
+  }
+  .onboarding-step-body { flex: 1; }
+  .onboarding-step-body strong {
+    display: block; font-size: 14px; color: var(--ink);
+    margin-bottom: 3px;
+  }
+  .onboarding-step-body span {
+    font-size: 12px; color: var(--ink-light); line-height: 1.5;
+  }
+  .onboarding-btn {
+    width: 100%; padding: 12px; background: var(--ink); color: var(--manila);
+    border: none; border-radius: 8px; font-family: var(--font-title);
+    font-size: 16px; font-weight: 700; cursor: pointer; letter-spacing: 0.08em;
+    transition: transform 0.2s ease, background 0.2s ease;
+  }
+  .onboarding-btn:active { transform: scale(0.96); background: #2D1E0C; }
 </style>
 </head>
 <body>
@@ -3010,18 +3140,93 @@
   </nav>
 </div>
 
+<!-- 数据加载进度遮罩 -->
+<div id="data-loading-overlay">
+  <div class="data-loading-card">
+    <div class="data-loading-icon">
+      <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+        <rect x="8" y="10" width="32" height="28" rx="2" stroke="#1A1209" stroke-width="3"/>
+        <line x1="16" y1="17" x2="28" y2="17" stroke="#1A1209" stroke-width="2" stroke-linecap="round"/>
+        <line x1="16" y1="23" x2="24" y2="23" stroke="#1A1209" stroke-width="2" stroke-linecap="round"/>
+        <line x1="16" y1="29" x2="26" y2="29" stroke="#1A1209" stroke-width="2" stroke-linecap="round"/>
+        <path d="M20 4 L12 9" stroke="#1A1209" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <p class="data-loading-msg">正在准备成语卡片…</p>
+    <div class="data-loading-track"><div id="data-progress-bar" class="data-loading-fill"></div></div>
+  </div>
+</div>
+
+<!-- Toast 通知容器 -->
+<div id="toast-container" class="toast-container"></div>
+
+<!-- 新手引导浮层 -->
+<div id="onboarding-overlay" class="onboarding-overlay">
+  <div class="onboarding-card">
+    <div class="onboarding-header">
+      <span class="onboarding-emoji">🎉</span>
+      <h3>欢迎来到成知！</h3>
+    </div>
+    <div class="onboarding-steps">
+      <div class="onboarding-step">
+        <div class="onboarding-step-num">1</div>
+        <div class="onboarding-step-body">
+          <strong>选择卡包，开始学习</strong>
+          <span>从 7 大主题卡包中挑选喜欢的，每日完成学习目标</span>
+        </div>
+      </div>
+      <div class="onboarding-step">
+        <div class="onboarding-step-num">2</div>
+        <div class="onboarding-step-body">
+          <strong>艾宾浩斯智能复习</strong>
+          <span>系统自动安排复习时机，科学的遗忘曲线帮你长久记忆</span>
+        </div>
+      </div>
+      <div class="onboarding-step">
+        <div class="onboarding-step-num">3</div>
+        <div class="onboarding-step-body">
+          <strong>收藏书架 &amp; 成知货币</strong>
+          <span>收藏喜欢的成语，赚取成知兑换提示和查证道具</span>
+        </div>
+      </div>
+    </div>
+    <button class="onboarding-btn" onclick="closeOnboarding()">开始学习 →</button>
+  </div>
+</div>
+
 <script src="supabase-sync.js"></script>
-<script src="chengyu-data-1.js"></script>
-<script src="chengyu-data-2.js"></script>
-<script src="chengyu-data-3.js"></script>
-<script src="chengyu-data-4.js"></script>
-<script src="chengyu-data-5.js"></script>
-<script src="chengyu-data-6.js"></script>
-<script src="chengyu-data-7.js"></script>
-<script src="chengyu-data-8.js"></script>
-<script src="chengyu-data-9.js"></script>
+<!-- 成语数据动态并行加载（非阻塞） -->
 <script>
-const IDIOMS = [...IDIOMS_BATCH1, ...IDIOMS_BATCH2, ...IDIOMS_BATCH3, ...IDIOMS_BATCH4, ...IDIOMS_BATCH5, ...IDIOMS_BATCH6, ...IDIOMS_BATCH7, ...IDIOMS_BATCH8, ...IDIOMS_BATCH9];
+(function loadDataFiles() {
+  var total = 9, loaded = 0;
+  window._dataReady = false;
+  window._dataLoading = true;
+
+  function onOneLoaded() {
+    loaded++;
+    document.getElementById('data-progress-bar').style.width = (loaded/total*100) + '%';
+    if (loaded === total) {
+      IDIOMS.length = 0;
+      var bs = [IDIOMS_BATCH1,IDIOMS_BATCH2,IDIOMS_BATCH3,IDIOMS_BATCH4,IDIOMS_BATCH5,IDIOMS_BATCH6,IDIOMS_BATCH7,IDIOMS_BATCH8,IDIOMS_BATCH9];
+      for (var b = 0; b < bs.length; b++) { if (bs[b]) IDIOMS.push.apply(IDIOMS, bs[b]); }
+      window._dataReady = true;
+      window._dataLoading = false;
+      var overlay = document.getElementById('data-loading-overlay');
+      if (overlay) { overlay.classList.add('done');
+        setTimeout(function() { overlay.remove(); }, 500); }
+      document.dispatchEvent(new CustomEvent('chengyu-data-ready'));
+    }
+  }
+
+  for (var i = 1; i <= total; i++) {
+    var s = document.createElement('script');
+    s.src = 'chengyu-data-' + i + '.js';
+    s.onload = onOneLoaded;
+    s.onerror = function() { console.warn('数据加载失败'); onOneLoaded(); };
+    document.head.appendChild(s);
+  }
+})();
+const IDIOMS = [];
 
 /* ═══ 成语搜索功能 ═══ */
 function openSearch() {
@@ -3519,6 +3724,38 @@ function getIllusPath(idiomId) {
   const fname = ILLUS_FILE[idiomId];
   if (!fname) return null;
   return 'illus/' + fname;
+}
+
+/* ── 插图骨架屏渐进加载 ── */
+function loadIllusWithSkeleton(container, path) {
+  if (!container || !path) return;
+  container.innerHTML = '<div class="illus-skeleton"><svg width="36" height="36" viewBox="0 0 48 48" fill="none"><rect x="4" y="10" width="40" height="28" rx="2" stroke="#1A1209" stroke-width="3"/><circle cx="16" cy="20" r="4" stroke="#1A1209" stroke-width="2.5"/><path d="M4 30 L14 22 L22 30 L30 24 L44 34" stroke="#1A1209" stroke-width="2.5" stroke-linejoin="round"/></svg></div>';
+  var img = document.createElement('img');
+  img.alt = '插图';
+  img.onload = function() {
+    img.classList.add('loaded-img');
+    container.innerHTML = '';
+    container.appendChild(img);
+  };
+  img.onerror = function() {
+    container.innerHTML = '<div class="illus-placeholder"><svg width="48" height="48" viewBox="0 0 48 48" fill="none"><rect x="4" y="10" width="40" height="28" rx="2" stroke="#1A1209" stroke-width="3"/><circle cx="16" cy="20" r="4" stroke="#1A1209" stroke-width="2.5"/><path d="M4 30 L14 22 L22 30 L30 24 L44 34" stroke="#1A1209" stroke-width="2.5" stroke-linejoin="round"/></svg><span>插图</span></div>';
+  };
+  img.src = path;
+}
+function loadDetailIllusWithSkeleton(container, path) {
+  if (!container || !path) return;
+  container.innerHTML = '<div class="illus-skeleton" style="min-height:180px"><svg width="48" height="48" viewBox="0 0 48 48" fill="none"><rect x="4" y="10" width="40" height="28" rx="2" stroke="#1A1209" stroke-width="3"/><circle cx="16" cy="20" r="4" stroke="#1A1209" stroke-width="2.5"/><path d="M4 30 L14 22 L22 30 L30 24 L44 34" stroke="#1A1209" stroke-width="2.5" stroke-linejoin="round"/></svg></div>';
+  var img = document.createElement('img');
+  img.alt = '插图';
+  img.onload = function() {
+    img.classList.add('loaded-img');
+    container.innerHTML = '';
+    container.appendChild(img);
+  };
+  img.onerror = function() {
+    container.innerHTML = '<div class="detail-illus-placeholder"><svg width="80" height="80" viewBox="0 0 80 80" fill="none"><rect x="8" y="16" width="64" height="48" rx="3" stroke="#1A1209" stroke-width="4"/><circle cx="28" cy="32" r="6" stroke="#1A1209" stroke-width="3"/><path d="M8 50 L24 36 L38 50 L52 40 L72 56" stroke="#1A1209" stroke-width="3" stroke-linejoin="round"/></svg><span>此处将呈现手绘插图</span></div>';
+  };
+  img.src = path;
 }
 
 /* ═══ 卡包分类定义 ═══ */
@@ -4475,11 +4712,11 @@ function startReviewCard() {
   document.getElementById('freq-tag-review').innerHTML = getFreqTagHTML(idiom.id);
   document.getElementById('freq-tag-learn').innerHTML = '';
 
-  // 加载插图
+  // 加载插图（骨架屏 + 渐进加载）
   const illusBox = document.querySelector('.illus-box');
   const illusPath = getIllusPath(idiom.id);
   if (illusPath) {
-    illusBox.innerHTML = `<img src="${illusPath}" alt="提示插图" onerror="this.parentElement.innerHTML='<div class=\\'illus-placeholder\\'><svg width=\\'48\\' height=\\'48\\' viewBox=\\'0 0 48 48\\' fill=\\'none\\'><rect x=\\'4\\' y=\\'10\\' width=\\'40\\' height=\\'28\\' rx=\\'2\\' stroke=\\'#1A1209\\' stroke-width=\\'3\\'/><circle cx=\\'16\\' cy=\\'20\\' r=\\'4\\' stroke=\\'#1A1209\\' stroke-width=\\'2.5\\'/><path d=\\'M4 30 L14 22 L22 30 L30 24 L44 34\\' stroke=\\'#1A1209\\' stroke-width=\\'2.5\\' stroke-linejoin=\\'round\\'/></svg><span>插图</span></div>'">`;
+    loadIllusWithSkeleton(illusBox, illusPath);
     illusBox.onclick = function() { openLightbox(illusPath); };
   } else {
     illusBox.onclick = null;
@@ -5335,11 +5572,11 @@ function startCard(index, forceReveal, skipGoalCheck, packIndices) {
   document.getElementById('tool-bar').style.display = '';
   updateLearnBtnState();
   // 绑定槽位点击（撤回已填字）
-  // 加载插图
+  // 加载插图（骨架屏 + 渐进加载）
   const illusBox = document.querySelector('.illus-box');
   const illusPath = getIllusPath(idiom.id);
   if (illusPath) {
-    illusBox.innerHTML = `<img src="${illusPath}" alt="提示插图" onerror="this.parentElement.innerHTML='<div class=\\'illus-placeholder\\'><svg width=\\'48\\' height=\\'48\\' viewBox=\\'0 0 48 48\\' fill=\\'none\\'><rect x=\\'4\\' y=\\'10\\' width=\\'40\\' height=\\'28\\' rx=\\'2\\' stroke=\\'#1A1209\\' stroke-width=\\'3\\'/><circle cx=\\'16\\' cy=\\'20\\' r=\\'4\\' stroke=\\'#1A1209\\' stroke-width=\\'2.5\\'/><path d=\\'M4 30 L14 22 L22 30 L30 24 L44 34\\' stroke=\\'#1A1209\\' stroke-width=\\'2.5\\' stroke-linejoin=\\'round\\'/></svg><span>插图</span></div>'">`;
+    loadIllusWithSkeleton(illusBox, illusPath);
     illusBox.onclick = function() { openLightbox(illusPath); };
   } else {
     illusBox.onclick = null;
@@ -5736,11 +5973,11 @@ function showDetail(index) {
     favBtn.classList.remove('faved');
     favText.textContent = '收藏';
   }
-  // 加载详情页插图
+  // 加载详情页插图（骨架屏 + 渐进加载）
   const detailIllusImg = document.querySelector('.detail-illus-img');
   const detailIllusPath = getIllusPath(idiom.id);
   if (detailIllusPath) {
-    detailIllusImg.innerHTML = `<img src="${detailIllusPath}" alt="${idiom.chars.join('')} 插图" onerror="this.parentElement.innerHTML='<div class=\\'detail-illus-placeholder\\'><svg width=\\'80\\' height=\\'80\\' viewBox=\\'0 0 80 80\\' fill=\\'none\\'><rect x=\\'8\\' y=\\'16\\' width=\\'64\\' height=\\'48\\' rx=\\'3\\' stroke=\\'#1A1209\\' stroke-width=\\'4\\'/><circle cx=\\'28\\' cy=\\'32\\' r=\\'6\\' stroke=\\'#1A1209\\' stroke-width=\\'3\\'/><path d=\\'M8 50 L24 36 L38 50 L52 40 L72 56\\' stroke=\\'#1A1209\\' stroke-width=\\'3\\' stroke-linejoin=\\'round\\'/></svg><span>此处将呈现手绘插图</span></div>'">`;
+    loadDetailIllusWithSkeleton(detailIllusImg, detailIllusPath);
   }
   // 设置"下一张"按钮逻辑
   const btnNext = document.getElementById('btn-next-card');
@@ -6351,12 +6588,17 @@ function renderEbbPreview(){
     }
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
+  // ── 页面初始化（等待成语数据就绪）──
+  function doInit() {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+    window._initMagnifierDrag = init;
   }
-  window._initMagnifierDrag = init;
+  if (window._dataReady) { doInit(); }
+  else { document.addEventListener('chengyu-data-ready', doInit, { once: true }); }
 })();
 </script>
 <!-- ═══ 登录弹窗 ═══ -->
@@ -6467,14 +6709,17 @@ function renderEbbPreview(){
     window.toggleLoginDialog(false);
   };
 
-  function showLoginToast(msg) {
-    var bar = document.getElementById('feedback-bar');
-    if (bar) {
-      bar.textContent = msg;
-      bar.className = 'feedback-bar show success';
-      setTimeout(function(){ bar.className = 'feedback-bar'; }, 2000);
-    }
+  // ── 全局 Toast 通知系统 ──
+  function showToast(msg, type) {
+    type = type || 'info';
+    var container = document.getElementById('toast-container');
+    var el = document.createElement('div');
+    el.className = 'toast toast-' + type;
+    el.textContent = msg;
+    container.appendChild(el);
+    setTimeout(function() { if (el.parentNode) el.remove(); }, 3000);
   }
+  function showLoginToast(msg) { showToast(msg, 'success'); }
 
   // 显示"确认邮件已发送"屏幕（替代关闭弹窗）
   function showConfirmEmailScreen(email) {
@@ -6547,6 +6792,8 @@ function renderEbbPreview(){
           await window.SupabaseSync.saveCloudData().catch(function(e){ console.warn('自动备份失败', e); });
           updateLoginUI();
           showLoginToast('注册成功！');
+          // 注册成功，显示新手引导
+          setTimeout(function() { showOnboarding(); }, 800);
         } else {
           // 兜底：邮箱确认还没关，显示确认屏幕
           showConfirmEmailScreen(email);
@@ -6868,9 +7115,28 @@ function renderEbbPreview(){
         showLoginToast('注册成功！赠送 100 成知 🎁');
       }
     } catch(e) {
-      console.warn('[Login] 发放奖励失败', e);
+      showToast('发放奖励失败，请刷新重试', 'error');
     }
   }
+
+  // ── 新手引导浮层 ──
+  function showOnboarding() {
+    var overlay = document.getElementById('onboarding-overlay');
+    if (overlay) overlay.classList.add('show');
+  }
+  window.closeOnboarding = function() {
+    var overlay = document.getElementById('onboarding-overlay');
+    if (overlay) overlay.classList.remove('show');
+  };
+  // 点击遮罩外部也可关闭
+  (function() {
+    var ov = document.getElementById('onboarding-overlay');
+    if (ov) {
+      ov.addEventListener('click', function(e) {
+        if (e.target === ov) window.closeOnboarding();
+      });
+    }
+  })();
 
   // 处理 Supabase 邮件确认重定向（#access_token=...）
   (async function handleEmailConfirmRedirect() {
