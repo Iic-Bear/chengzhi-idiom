@@ -6044,11 +6044,20 @@ backfillReviewLog();
   // （不再在这里同步调用，避免 loadCloudData 后覆盖导致重复签到）
 })();
 
-let previewIndex = Math.floor(Math.random() * IDIOMS.length);
-let previewRevealIdx = Math.floor(Math.random() * 4);
-renderHome();
-renderReviewPreview();
-renderCollectList();
+let previewIndex = 0;
+let previewRevealIdx = 0;
+function renderInitialScreens() {
+  previewIndex = Math.floor(Math.random() * IDIOMS.length);
+  previewRevealIdx = Math.floor(Math.random() * 4);
+  renderHome();
+  renderReviewPreview();
+  renderCollectList();
+}
+if (window._dataReady) {
+  renderInitialScreens();
+} else {
+  document.addEventListener('chengyu-data-ready', renderInitialScreens, { once: true });
+}
 
 /* ═══════════════════════════════════════════
    全局交互：涟漪 + 页面过渡 + 交错动画
