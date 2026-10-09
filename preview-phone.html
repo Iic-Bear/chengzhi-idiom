@@ -93,6 +93,7 @@
   <button onclick="setPreset('iphone-15-pro')" class="active" id="btn-iphone-15-pro">iPhone 15 Pro</button>
   <button onclick="triggerGuidePreview()" title="强制触发复习入口引导动画">🎬 复习引导预览</button>
   <button onclick="triggerLearnGuidePreview()" title="强制触发学习入口引导动画">📚 学习引导预览</button>
+  <button onclick="triggerPlanGuidePreview()" title="强制触发学习计划入口引导">🗓 学习计划引导预览</button>
   <button onclick="setPreset('iphone-se')" id="btn-iphone-se">iPhone SE</button>
   <button onclick="setPreset('iphone-15-max')" id="btn-iphone-15-max">iPhone 15 Pro Max</button>
   <button onclick="setPreset('android')" id="btn-android">Android 360×800</button>
@@ -220,6 +221,20 @@ function triggerLearnGuidePreview() {
     var iframe2 = document.getElementById('screen2');
     if (iframe2 && iframe2.contentWindow) {
       iframe2.contentWindow.postMessage('forceStartLearnGuide', '*');
+    }
+  }
+}
+
+// 学习计划引导预览
+function triggerPlanGuidePreview() {
+  var iframe = document.getElementById('screen1');
+  if (iframe && iframe.contentWindow) {
+    iframe.contentWindow.postMessage('forceStartPlanGuide', '*');
+  }
+  if (showSecond) {
+    var iframe2 = document.getElementById('screen2');
+    if (iframe2 && iframe2.contentWindow) {
+      iframe2.contentWindow.postMessage('forceStartPlanGuide', '*');
     }
   }
 }

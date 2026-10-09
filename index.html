@@ -121,6 +121,14 @@
     100%{ background: var(--ink); }
   }
   .header-yueli.gain { animation: yueliGain 0.6s ease; }
+  /* 答题卡内的成知胶囊（挪到卡片左上角，与右上角频率书签对称） */
+  .main-card > .header-yueli.yueli-in-card {
+    position: absolute; top: 8px; left: 8px; z-index: 5;
+    margin: 0; padding: 4px 8px; font-size: 12px; gap: 3px;
+  }
+  .main-card > .header-yueli.yueli-in-card .yueli-icon { width: 12px; height: 12px; }
+  /* 答题卡隐藏顶部栏后，补偿刘海屏安全区 */
+  #screen-guess { padding-top: var(--sat); }
   /* 浮动成知奖励提示 */
   .yueli-toast {
     position: fixed; left: 50%; transform: translateX(-50%);
@@ -346,7 +354,7 @@
 
   /* 新手引导 · 浮动卡片 */
   .guide-overlay {
-    position: fixed; inset: 0; z-index: 80;
+    position: fixed; inset: 0; z-index: 210; /* 高于顶栏(100)/底栏(200)，低于登录弹窗(999)，确保计划引导能高亮顶栏内元素 */
     background: rgba(26,18,9,0.45);
     opacity: 0; pointer-events: none;
     transition: opacity 0.3s ease;
@@ -3291,7 +3299,7 @@ function escapeHtml(s) {
 function buildSearchCard(idiom) {
   const charsHtml = idiom.chars.map(c => '<span class="list-char">' + escapeHtml(c) + '</span>').join('');
   const hint = idiom.short || idiom.meaning || '';
-  return '<div class="list-card" onclick="closeSearch();startCard(' + idiom.id + ')">' +
+  return '<div class="list-card" onclick="closeSearch();openIdiomDetail(' + idiom.id + ')">' +
     '<div class="list-card-chars">' + charsHtml + '</div>' +
     '<div class="list-card-meta"><div class="list-card-tag">' + escapeHtml(idiom.pinyin || '') + '</div>' +
     '<div class="list-card-hint">' + escapeHtml(hint) + '</div></div></div>';
@@ -3758,6 +3766,24 @@ function loadDetailIllusWithSkeleton(container, path) {
   img.src = path;
 }
 
+/* ── 插图预加载：答题/阅读时后台提前拉取后续插图，点"下一张"秒开 ── */
+var _prefetchedIllus = {};
+function prefetchIllus(indices) {
+  var idle = window.requestIdleCallback || function(cb) { return setTimeout(cb, 1200); };
+  idle(function() {
+    (indices || []).forEach(function(idx) {
+      if (idx < 0 || idx >= IDIOMS.length || !IDIOMS[idx]) return;
+      var p = getIllusPath(IDIOMS[idx].id);
+      if (p && !_prefetchedIllus[p]) {
+        _prefetchedIllus[p] = true;
+        var im = new Image();
+        im.decoding = 'async';
+        im.src = p; /* 进浏览器缓存 + SW 缓存，正式打开时零等待 */
+      }
+    });
+  });
+}
+
 /* ═══ 卡包分类定义 ═══ */
 const PACKS = [
   {
@@ -3936,7 +3962,7 @@ function renderWeekCheckin() {
   monday.setDate(now.getDate() + diffToMon);
   monday.setHours(0, 0, 0, 0);
 
-  const labels = ['月','火','水','木','金','土','日'];
+  const labels = ['一','二','三','四','五','六','日'];
 
   // 判断本周是否有连续两天缺签（仅对"过去"的日子判断）
   // 当天及未来不算缺签
@@ -3999,7 +4025,8 @@ function spendYueli(amount) {
   if (data.balance < amount) {
     // 余额不足
     // 如果未登录，并且没有提示过，则弹出登录界面
-    if (!currentUser && !data.yueliPrompted) {
+    // 注意：currentUser 是登录 IIFE 的闭包变量，必须读 window 镜像，否则 ReferenceError 导致查证镜无法回弹
+    if (!window.currentUser && !data.yueliPrompted) {
       data.yueliPrompted = true;
       saveYueli(data);
       setTimeout(function() {
@@ -4030,6 +4057,28 @@ function gainYueli(amount, reason) {
   refreshLevelUI();
   showYueliFloat(amount);
   showYueliToast(`+${amount}  ${reason}`);
+}
+
+/* ── 成知胶囊挂载：答题卡内显示于卡片左上角，其余场景归还顶部栏 ── */
+/* 注意：保留元素引用（而非每次 getElementById），因为复习完成/还原会用 innerHTML
+   重建 .guess-wrap，元素会被短暂摘出 DOM；缓存引用可在切换页面时把它重新挂回去。 */
+var _yueliBadgeEl = null;
+function mountYueliBadge(inCard) {
+  if (!_yueliBadgeEl || !document.contains(_yueliBadgeEl)) {
+    _yueliBadgeEl = document.getElementById('header-yueli-btn') || _yueliBadgeEl;
+  }
+  if (!_yueliBadgeEl) return;
+  if (inCard) {
+    var card = document.getElementById('learn-main-card');
+    if (!card) return;
+    if (_yueliBadgeEl.parentElement !== card) card.appendChild(_yueliBadgeEl);
+    _yueliBadgeEl.classList.add('yueli-in-card');
+  } else {
+    var left = document.querySelector('.header-left');
+    if (left && _yueliBadgeEl.parentElement !== left) left.appendChild(_yueliBadgeEl);
+    _yueliBadgeEl.classList.remove('yueli-in-card');
+  }
+  refreshYueliUI(); // 重新挂载后同步余额显示
 }
 
 function refreshYueliUI(animClass) {
@@ -4314,6 +4363,7 @@ let cachedDueList = []; // 缓存待复习列表，确保封面和进入后一�
 let cachedRevealIdx = Math.floor(Math.random() * 4); // 缓存封面揭示位置
 let bookExpandState = { open: false, mode: null }; // null | 'learn' | 'review'
 let packContext = null; // 从卡包进入时记录：{ indices: [...IDIOMS index], pos: 0 }
+let detailBrowseMode = false; // 查阅模式：从全部卡册/搜索列表进入时，详情页"下一张"继续浏览典故而非进答题
 
 // ═══ 卡册展开/收起（书本左右翻开/合上效果） ═══
 function openBookExpand(mode, clickedEl) {
@@ -4692,7 +4742,7 @@ emptyReviewSound.volume = 0.5;
   // onclick 中已包含显式音效函数 → 跳过
   var SOUND_RE = /play(Nav|CardTap|Entry|Album|Deck|Hint|Correct|Fail|Dull|FavBook|FlipPage|EmptyReview)Sound|SFX\.(flip|stamp|soft)/;
   // 内部会播放音效的函数名 → 跳过（避免双重音效）
-  var IMPLICIT_RE = /toggleFavCurrent|handleCheck|showDetail\b|showStatList|openBookExpand|closeBookExpand|goNextCard|onCardTap|flyToCard|checkReviewGuess|checkGuess|startReview/;
+  var IMPLICIT_RE = /toggleFavCurrent|handleCheck|showDetail\b|openIdiomDetail|showStatList|openBookExpand|closeBookExpand|goNextCard|onCardTap|flyToCard|checkReviewGuess|checkGuess|startReview/;
   // 非按钮类交互元素 → 跳过（字卡、槽位、线索框、插图、遮罩等）
   var SKIP_ID_RE = /^gc-|^cc-|^clue-|clue-zone|illus-box|lightbox|search-overlay|guide-|-mask$/;
   var SKIP_CLS_RE = /clue-zone|illus-box|char-card|clue-char/;
@@ -4798,6 +4848,10 @@ function startReviewCard() {
     illusBox.onclick = function() { openLightbox(illusPath); };
   } else {
     illusBox.onclick = null;
+  }
+  // 预加载复习队列中的下一张插图
+  if (reviewState.list && reviewState.list[currentIndex + 1] !== undefined) {
+    prefetchIllus([reviewState.list[currentIndex + 1]]);
   }
 
   // 重置输入和线索框
@@ -5206,6 +5260,7 @@ function handleBack() {
     restoreGuessWrap();
   }
   packContext = null; // 清空卡包上下文
+  detailBrowseMode = false; // 退出查阅模式
   // 答题页/详情页/统计列表返回直接回上一级
   if (state.screen === 'guess' || state.screen === 'detail' || state.screen === 'stat-list') {
     navStack = [];
@@ -5223,6 +5278,13 @@ function handleBack() {
 
 /* ===== 新手引导 ===== */
 const GUIDE_STEPS = {
+  plan: [
+    {
+      text: '点击此处，设定你的<strong>学习计划</strong>吧。',
+      getTarget: function() { return document.getElementById('header-count-btn'); },
+      cardOffset: 80
+    }
+  ],
   review: [
     {
       text: '点击<strong>黑框</strong>可以揭示对应的<strong>汉字</strong>。',
@@ -5242,15 +5304,15 @@ const GUIDE_STEPS = {
       cardOffset: -80
     },
     {
-      text: '把<strong>查证镜</strong>拖到<strong>字卡</strong>上 → 浮现真假字卡。',
+      text: '可以拖动它到要<strong>查验的字卡</strong>上。',
       getTarget: function() { return document.getElementById('tool-seal'); },
       getTargets: function() { return [document.getElementById('tool-seal'), document.querySelector('.char-card:not(.used)')]; },
       cardOffset: -80
     },
     {
-      text: '把<strong>查证镜</strong>拖到<strong>线索框</strong>上 → 浮现提示。',
-      getTarget: function() { return document.querySelector('.clue-zone'); },
-      cardOffset: 80
+      text: '现在开始答题吧！',
+      getTarget: function() { return document.getElementById('char-card-grid'); },
+      cardOffset: -80
     }
   ]
 };
@@ -5258,13 +5320,16 @@ var guideMode = null; // 'review' | 'learn'
 var guideStep = 0;
 var guideActive = false;
 
+function guideDoneKey(mode) {
+  if (mode === 'learn') return 'riZhiLu_learnGuideDone';
+  if (mode === 'plan') return 'riZhiLu_planGuideDone';
+  return 'riZhiLu_reviewGuideDone';
+}
 function hasGuideDone(mode) {
-  var key = mode === 'learn' ? 'riZhiLu_learnGuideDone' : 'riZhiLu_reviewGuideDone';
-  try { return localStorage.getItem(key) === '1'; } catch(e) { return false; }
+  try { return localStorage.getItem(guideDoneKey(mode)) === '1'; } catch(e) { return false; }
 }
 function markGuideDone() {
-  var key = guideMode === 'learn' ? 'riZhiLu_learnGuideDone' : 'riZhiLu_reviewGuideDone';
-  try { localStorage.setItem(key, '1'); } catch(e) {}
+  try { localStorage.setItem(guideDoneKey(guideMode), '1'); } catch(e) {}
 }
 
 function startGuide(mode) {
@@ -5331,7 +5396,9 @@ function updateGuideStep() {
     // 浮卡在高亮框上方
     var cardBottom = primaryRect.top - 12;
     var cardH = floatCard.offsetHeight || 120;
-    floatCard.style.top = Math.max(12, cardBottom - cardH) + 'px';
+    // 顶部下限含刘海屏安全区（答题页隐藏顶栏后需自行避让状态栏）
+    var satTop = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sat')) || 0;
+    floatCard.style.top = Math.max(12 + satTop, cardBottom - cardH) + 'px';
     floatCard.style.bottom = 'auto';
   } else {
     // 浮卡在高亮框下方
@@ -5349,8 +5416,9 @@ function updateGuideStep() {
     dot.style.display = i < steps.length ? '' : 'none';
   }
 
-  // 按钮文字
-  document.getElementById('guide-btn-next').textContent = guideStep === steps.length - 1 ? '开始答题' : '下一步';
+  // 按钮文字（各引导模式最后一步的按钮可定制）
+  var lastBtnText = { review: '开始答题', learn: '开始答题', plan: '知道了' }[guideMode] || '开始答题';
+  document.getElementById('guide-btn-next').textContent = guideStep === steps.length - 1 ? lastBtnText : '下一步';
 }
 
 function guideNext() {
@@ -5370,8 +5438,23 @@ function dismissGuide() {
   document.getElementById('guide-hl').classList.remove('active');
 }
 
+/* ── 学习计划引导：新用户第一次进入首页时提示右上角入口 ── */
+/* 只展示一次；避开登录弹窗与注册新手引导，关闭它们后再补触发 */
+function maybeStartPlanGuide() {
+  if (hasGuideDone('plan') || guideActive) return;
+  if (state.screen !== 'home') return;
+  var lm = document.getElementById('login-mask');
+  if (lm && lm.classList.contains('open')) return;
+  var ob = document.getElementById('onboarding-overlay');
+  if (ob && ob.classList.contains('show')) return;
+  startGuide('plan');
+}
+
 // 绑定引导按钮
 document.getElementById('guide-btn-next').addEventListener('click', function(e) { e.stopPropagation(); playCardTapSound(); guideNext(); });
+
+// 启动触发：默认首页不经 showScreen，这里兜底（2.5s 确保晚于首访登录弹窗的 1.5s，避免两层弹窗打架）
+setTimeout(maybeStartPlanGuide, 2500);
 
 // 监听外部强制触发引导（preview-phone.html 用）
 window.addEventListener('message', function(e) {
@@ -5395,10 +5478,22 @@ window.addEventListener('message', function(e) {
         document.getElementById('guide-overlay').classList.add('active');
       });
     });
+  } else if (e.data === 'forceStartPlanGuide') {
+    guideMode = 'plan';
+    guideStep = 0;
+    guideActive = true;
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() {
+        updateGuideStep();
+        document.getElementById('guide-overlay').classList.add('active');
+      });
+    });
   }
 });
 
 function showScreen(name, isBack) {
+  // 离开详情页即退出查阅模式（覆盖底部导航等所有切页路径）
+  if (name !== 'detail') detailBrowseMode = false;
   // 非返回且非 tab 切换时，push 当前页面到栈
   if (!isBack && name !== state.screen) {
     // tab 切换（home/collect）清空栈
@@ -5417,8 +5512,10 @@ function showScreen(name, isBack) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   const navMap = { home: 'nav-home', collect: 'nav-collect', plan: 'nav-home', statList: 'nav-home' };
   if (navMap[name]) document.getElementById(navMap[name]).classList.add('active');
-  document.getElementById('main-header').style.display = (name === 'detail') ? 'none' : '';
-  document.querySelector('.progress-bar-wrap').style.display = (name === 'detail') ? 'none' : '';
+  var _hideHeader = (name === 'detail' || name === 'guess');
+  document.getElementById('main-header').style.display = _hideHeader ? 'none' : '';
+  document.querySelector('.progress-bar-wrap').style.display = _hideHeader ? 'none' : '';
+  mountYueliBadge(name === 'guess'); // 答题卡内：成知胶囊挪到卡片左上角
   // 底栏：仅在 home/collect/plan 显示，其他子页面滑出隐藏
   const navBar = document.querySelector('.bottom-nav');
   const showNav = ['home', 'collect', 'plan'].includes(name);
@@ -5446,6 +5543,7 @@ function showScreen(name, isBack) {
     if (layer) { layer.style.overflow = 'hidden'; layer.classList.remove('expanded'); }
     bookExpandState = { open: false, mode: null };
     renderReviewPreview();
+    setTimeout(maybeStartPlanGuide, 600); // 首页稳定后提示学习计划入口（仅首次）
   }
   if (name === 'collect') renderCollectList();
 }
@@ -5547,7 +5645,7 @@ function openPackDetail(packIndex) {
       const revealIdx = Math.floor(Math.random() * 4);
       const tag = (idiom.tags && idiom.tags[0]) || '';
       const hint = (idiom.clue || '').slice(0, 28);
-      return `<div class="list-card ${isDone ? 'done' : ''}" onclick="startCard(${i}, ${isDone ? 'null' : revealIdx}, true, ${JSON.stringify(packIndices)})">
+      return `<div class="list-card ${isDone ? 'done' : ''}" onclick="openIdiomDetail(${i}, ${JSON.stringify(packIndices)})">
         <div class="list-card-chars">${idiom.chars.map((c, ci) =>
           `<div class="list-char ${!isDone && ci !== revealIdx ? 'blurred' : ''}">${escapeHtml(c)}</div>`
         ).join('')}</div>
@@ -5584,6 +5682,7 @@ function startCard(index, forceReveal, skipGoalCheck, packIndices) {
     return;
   }
   // 记录卡包上下文（用于"下一张"按卡包顺序走）
+  detailBrowseMode = false; // 进入答题流程即退出查阅模式
   if (packIndices && Array.isArray(packIndices)) {
     const pos = packIndices.indexOf(index);
     packContext = { indices: packIndices, pos: pos >= 0 ? pos : 0 };
@@ -5659,6 +5758,18 @@ function startCard(index, forceReveal, skipGoalCheck, packIndices) {
   } else {
     illusBox.onclick = null;
   }
+  // 预加载后续 2 张插图：利用答题时间在后台拉取，掩盖网络延迟
+  var _upNext = [];
+  if (packContext) {
+    for (var _pk = 1; _pk <= 2; _pk++) {
+      var _pi = packContext.indices[packContext.pos + _pk];
+      if (_pi !== undefined) _upNext.push(_pi);
+    }
+  } else {
+    if (index + 1 < IDIOMS.length) _upNext.push(index + 1);
+    if (index + 2 < IDIOMS.length) _upNext.push(index + 2);
+  }
+  prefetchIllus(_upNext);
   // 重置线索框状态
   var _cl = document.querySelector('.clue-label');
   if (_cl) _cl.textContent = '线 索';
@@ -6030,6 +6141,22 @@ function removeFav(idx) {
   }
 }
 
+/* ── 查阅模式入口：从全部卡册/搜索列表直接打开典故页面（不进答题） ── */
+function openIdiomDetail(index, packIndices) {
+  if (index < 0 || index >= IDIOMS.length || !IDIOMS[index]) {
+    console.error('openIdiomDetail: invalid index', index);
+    return;
+  }
+  if (packIndices && Array.isArray(packIndices)) {
+    const pos = packIndices.indexOf(index);
+    packContext = { indices: packIndices, pos: pos >= 0 ? pos : 0 };
+  } else {
+    packContext = null;
+  }
+  detailBrowseMode = true;
+  showDetail(index);
+}
+
 function showDetail(index) {
   SFX.soft(); // 翻到新卡片
   state.current = index;
@@ -6057,6 +6184,14 @@ function showDetail(index) {
   if (detailIllusPath) {
     loadDetailIllusWithSkeleton(detailIllusImg, detailIllusPath);
   }
+  // 预加载下一张插图（按"下一张"按钮将走到的顺序）
+  var _dn = null;
+  if (packContext) {
+    if (packContext.pos + 1 < packContext.indices.length) _dn = packContext.indices[packContext.pos + 1];
+  } else if (index + 1 < IDIOMS.length) {
+    _dn = index + 1;
+  }
+  if (_dn !== null) prefetchIllus([_dn]);
   // 设置"下一张"按钮逻辑
   const btnNext = document.getElementById('btn-next-card');
   if (packContext) {
@@ -6066,12 +6201,13 @@ function showDetail(index) {
     btnNext.onclick = hasNextInPack ? (() => {
       playFlipPageSound();
       packContext.pos = nextPos;
-      startCard(packContext.indices[nextPos], undefined, true, packContext.indices);
+      if (detailBrowseMode) { showDetail(packContext.indices[nextPos]); }
+      else { startCard(packContext.indices[nextPos], undefined, true, packContext.indices); }
     }) : (() => { playFlipPageSound(); handleBack(); });
   } else {
     const hasNext = index + 1 < IDIOMS.length;
     btnNext.textContent = hasNext ? '下一张 →' : '返回首页';
-    btnNext.onclick = hasNext ? () => { playFlipPageSound(); startCard(index + 1); } : () => { playFlipPageSound(); handleBack(); };
+    btnNext.onclick = hasNext ? () => { playFlipPageSound(); if (detailBrowseMode) { showDetail(index + 1); } else { startCard(index + 1); } } : () => { playFlipPageSound(); handleBack(); };
   }
   showScreen('detail');
 }
@@ -6503,8 +6639,8 @@ function renderEbbPreview(){
 
       var ok = spendYueli(2);
       if (!ok) {
-        showFeedback('成知不足！完成复习目标可获得成知奖励', 'error');
-        snapBack();
+        snapBack(); // 先回弹（与正常查证一致），再提示
+        showFeedback('成知不足，无法查验', 'error');
         return;
       }
 
@@ -6538,8 +6674,8 @@ function renderEbbPreview(){
     if (clueEl && !clueEl.classList.contains('revealed')) {
       var ok = spendYueli(2);
       if (!ok) {
-        showFeedback('成知不足！完成复习目标可获得成知奖励', 'error');
-        snapBack();
+        snapBack(); // 先回弹（与正常查证一致），再提示
+        showFeedback('成知不足，无法查验', 'error');
         return;
       }
       clueEl.classList.add('revealed');
@@ -6757,7 +6893,7 @@ function renderEbbPreview(){
   var profileBirthday = document.getElementById('profile-birthday');
   var profileSaveBtn = document.getElementById('profile-save-btn');
   var profileRewardBanner = document.getElementById('profile-reward-banner');
-  var currentUser = null;
+  var currentUser = window.currentUser = null; // 同步镜像到 window，供登录闭包外的代码（如 spendYueli）读取
   var selectedEmoji = '👤';
 
   window.toggleLoginDialog = function(show) {
@@ -6769,6 +6905,8 @@ function renderEbbPreview(){
     } else {
       loginMask.classList.remove('open');
     }
+    // 关闭登录弹窗后，若停留在首页则补触发学习计划引导（避开弹窗打架）
+    if (!loginMask.classList.contains('open')) setTimeout(maybeStartPlanGuide, 400);
     loginError.textContent = '';
     loginEmail.value = '';
     loginPassword.value = '';
@@ -6908,7 +7046,7 @@ function renderEbbPreview(){
     try {
       user = await window.SupabaseSync.getUser();
     } catch(e) {}
-    currentUser = user;
+    currentUser = window.currentUser = user;
 
     var titleMain = document.getElementById('header-title-main');
 
@@ -7220,6 +7358,7 @@ function renderEbbPreview(){
   window.closeOnboarding = function() {
     var overlay = document.getElementById('onboarding-overlay');
     if (overlay) overlay.classList.remove('show');
+    setTimeout(maybeStartPlanGuide, 400); // 注册引导关闭后补触发学习计划引导
   };
   // 点击遮罩外部也可关闭
   (function() {
