@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-<title>成知 · 成语卡 — 每日一张成语卡片，轻松学成语</title>
+<title>成知·格物致知</title>
 <meta name="description" content="成知是一款温暖的成语学习工具。每日一张成语卡片，拼字选卡、印章查证、艾宾浩斯复习，像翻纸质书一样学成语。支持离线使用，无需下载 App。">
 <meta name="theme-color" content="#1A1209">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -11,16 +11,16 @@
 <meta name="apple-mobile-web-app-title" content="成知">
 <!-- Open Graph / 社交分享预览 -->
 <meta property="og:type" content="website">
-<meta property="og:title" content="成知 · 成语卡 — 每日一张成语卡片">
+<meta property="og:title" content="成知·格物致知">
 <meta property="og:description" content="温暖的成语学习工具。拼字选卡、印章查证、艾宾浩斯复习，像翻纸质书一样学成语。支持离线使用。">
 <meta property="og:image" content="https://iic-bear.github.io/chengzhi-idiom/icons/icon-512.png">
 <meta property="og:image:width" content="512">
 <meta property="og:image:height" content="512">
 <meta property="og:url" content="https://iic-bear.github.io/chengzhi-idiom/">
-<meta property="og:site_name" content="成知 · 成语卡">
+<meta property="og:site_name" content="成知·格物致知">
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="成知 · 成语卡 — 每日一张成语卡片">
+<meta name="twitter:title" content="成知·格物致知">
 <meta name="twitter:description" content="温暖的成语学习工具。拼字选卡、印章查证、艾宾浩斯复习，像翻纸质书一样学成语。">
 <meta name="twitter:image" content="https://iic-bear.github.io/chengzhi-idiom/icons/icon-512.png">
 <link rel="manifest" href="manifest.json">
@@ -4262,7 +4262,23 @@ function addTodayReviewed(idiomIndex) {
 const EBINHAUS_INTERVALS = [32400, 86400, 259200, 604800, 1296000, 2592000];
 
 function loadReviewLog() {
-  try { return JSON.parse(localStorage.getItem(REVIEW_KEY)) || {}; } catch(e) { return {}; }
+  var log = {};
+  try { log = JSON.parse(localStorage.getItem(REVIEW_KEY)) || {}; } catch(e) { log = {}; }
+  // 数据自愈：兼容历史版本云端恢复写回的旧字段名（firstLearnTime/lastReviewTime）与 ISO 字符串，
+  // 统一规范化为 firstLearn/lastReview（毫秒数值），避免调度读取 undefined 导致条目永不到期
+  for (var k in log) {
+    var r = log[k];
+    if (!r) { delete log[k]; continue; }
+    var fl = (r.firstLearn != null) ? r.firstLearn : r.firstLearnTime;
+    var lr = (r.lastReview != null) ? r.lastReview : r.lastReviewTime;
+    var flMs = (fl != null && !isNaN(new Date(fl).getTime())) ? new Date(fl).getTime() : null;
+    var lrMs = (lr != null && !isNaN(new Date(lr).getTime())) ? new Date(lr).getTime() : null;
+    r.firstLearn = flMs;
+    r.lastReview = lrMs;
+    r.reviewCount = r.reviewCount || 0;
+    delete r.firstLearnTime; delete r.lastReviewTime; // 清理旧字段，防止再次上传出脏数据
+  }
+  return log;
 }
 function saveReviewLog(log) {
   localStorage.setItem(REVIEW_KEY, JSON.stringify(log));
@@ -4300,7 +4316,10 @@ function getDueReviewList() {
   for (const [idx, record] of Object.entries(log)) {
     const i = parseInt(idx);
     if (!state.done.includes(i)) continue; // 只复习已学过的
-    const elapsed = record.lastReview ? (now - record.lastReview) / 1000 : (now - record.firstLearn) / 1000;
+    let elapsed;
+    if (record.lastReview) elapsed = (now - record.lastReview) / 1000;
+    else if (record.firstLearn) elapsed = (now - record.firstLearn) / 1000;
+    else elapsed = Infinity; // 时间数据缺失但已学过 → 立即到期，条目永不丢失
     // 首次学习后的第一次复习间隔
     const intervalIdx = record.reviewCount;
     const interval = intervalIdx < EBINHAUS_INTERVALS.length
@@ -4869,7 +4888,7 @@ function startReviewCard() {
   // 首次复习触发引导
   setTimeout(function() { startGuide('review'); }, 350);
 
-  // 线索框拖动放大镜揭示（不再支持点击）
+  // 线索框现已支持直接点击揭示（全局事件委托，见 snapBack 下方），此处 onclick=null 防止旧绑定残留
   document.querySelector('.clue-zone').onclick = null;
   // 隐藏格子点击揭示 / 显示拼音
   const pinyinArr = idiom.pinyin.split(/\s+/);
@@ -5777,7 +5796,7 @@ function startCard(index, forceReveal, skipGoalCheck, packIndices) {
   hideFeedback(); showScreen('guess');
   // 首次学习触发引导
   setTimeout(function() { startGuide('learn'); }, 350);
-  // 线索框拖动放大镜揭示（不再支持点击）
+  // 线索框现已支持直接点击揭示（全局事件委托，见 snapBack 下方），此处 onclick=null 防止旧绑定残留
   document.querySelector('.clue-zone').onclick = null;
   // 绑定槽位点击（撤回已填字）
   for (let i = 0; i < 4; i++) {
@@ -6697,6 +6716,22 @@ function renderEbbPreview(){
     sealSvg.style.animation = 'magnifierEmerge 0.35s cubic-bezier(0.34,1.56,0.64,1)';
     setTimeout(function() { sealSvg.style.animation = ''; }, 400);
   }
+
+  /* ── 线索框点击揭示：与拖动放大镜到线索框完全相同的动作，仅触发方式不同 ──
+     事件委托挂在 document 上，两个 .clue-zone 模板都生效；
+     已 revealed 的（如复习模式）自动跳过；放大镜拖动查证逻辑保持不变。 */
+  document.addEventListener('click', function(e) {
+    var el = e.target && e.target.closest ? e.target.closest('.clue-zone') : null;
+    if (!el || el.classList.contains('revealed')) return;
+    var ok = spendYueli(2);
+    if (!ok) {
+      showFeedback('成知不足，无法查验', 'error');
+      return;
+    }
+    el.classList.add('revealed');
+    playHintSound();
+    showYueliToast('已查证线索');
+  }, false);
 
   function onTouchStart(e) {
     e.preventDefault();

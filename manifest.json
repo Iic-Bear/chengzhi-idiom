@@ -1,5 +1,5 @@
 {
-  "name": "成知·成语卡",
+  "name": "成知·格物致知",
   "appid": "__UNI__A1B2C3D4",
   "description": "每日一张成语卡片，轻松学成语",
   "versionName": "1.0.0",
@@ -35,7 +35,7 @@
     "usingComponents": true
   },
   "h5": {
-    "title": "成知·成语卡",
+    "title": "成知·格物致知",
     "template": "",
     "router": {
       "mode": "hash",

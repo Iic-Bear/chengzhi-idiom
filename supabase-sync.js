@@ -172,14 +172,21 @@ async function saveCloudData() {
 
   // 2. 复习日志  riZhiLu_reviewLog  →  table: user_review_log
   const reviewLog = JSON.parse(localStorage.getItem('riZhiLu_reviewLog') || '{}');
-  const logEntries = Object.entries(reviewLog).map(([idiomId, log]) => ({
-    user_id: userId,
-    idiom_id: parseInt(idiomId),
-    first_learn_time: log.firstLearnTime || new Date().toISOString(),
-    last_review_time: log.lastReviewTime || null,
-    review_count: log.reviewCount || 0,
-    updated_at: new Date().toISOString()
-  }));
+  const logEntries = Object.entries(reviewLog).map(([idiomId, log]) => {
+    // 读取本地真实字段名 firstLearn/lastReview（毫秒时间戳），兼容旧字段名 firstLearnTime/lastReviewTime
+    const fl = (log.firstLearn != null) ? log.firstLearn : log.firstLearnTime;
+    const lr = (log.lastReview != null) ? log.lastReview : log.lastReviewTime;
+    const flMs = (fl != null && !isNaN(new Date(fl).getTime())) ? new Date(fl).getTime() : null;
+    const lrMs = (lr != null && !isNaN(new Date(lr).getTime())) ? new Date(lr).getTime() : null;
+    return {
+      user_id: userId,
+      idiom_id: parseInt(idiomId),
+      first_learn_time: flMs != null ? new Date(flMs).toISOString() : new Date().toISOString(),
+      last_review_time: lrMs != null ? new Date(lrMs).toISOString() : null,
+      review_count: log.reviewCount || 0,
+      updated_at: new Date().toISOString()
+    };
+  });
   if (logEntries.length > 0) {
     const { error } = await _sbClient
       .from('user_review_log')
@@ -280,7 +287,7 @@ async function loadCloudData() {
     }
   }
 
-  // 2. 复习日志（始终用云端版本，假设云端来自最新设备）
+  // 2. 复习日志（合并保护：云端为准，但本地独有条目保留、本地进度更靠前时保留本地）
   const { data: reviewData, error: rErr } = await _sbClient
     .from('user_review_log')
     .select('*')
@@ -290,14 +297,30 @@ async function loadCloudData() {
     const cloudLog = {};
     reviewData.forEach(r => {
       cloudLog[r.idiom_id] = {
-        firstLearnTime: r.first_learn_time,
-        lastReviewTime: r.last_review_time,
-        reviewCount: r.review_count
+        // 写回本地真实字段名 firstLearn/lastReview（毫秒），与 index.html 调度逻辑一致
+        firstLearn: r.first_learn_time ? Date.parse(r.first_learn_time) : Date.now(),
+        lastReview: r.last_review_time ? Date.parse(r.last_review_time) : null,
+        reviewCount: r.review_count || 0
       };
     });
+    // 合并保护：本地条目不能被云端旧数据冲掉
+    const localLog = JSON.parse(localStorage.getItem('riZhiLu_reviewLog') || '{}');
+    Object.keys(localLog).forEach(k => {
+      const l = localLog[k];
+      if (!l) return;
+      const c = cloudLog[k];
+      if (!c) {
+        // 云端没有（本地新学未上传）→ 保留本地
+        cloudLog[k] = l;
+      } else {
+        // 两边都有 → 保留复习进度更靠前的一方
+        const lc = l.reviewCount || 0, cc = c.reviewCount || 0;
+        if (lc > cc) cloudLog[k] = l;
+      }
+    });
     localStorage.setItem('riZhiLu_reviewLog', JSON.stringify(cloudLog));
-    loadedCount += reviewData.length;
-    console.log('[Supabase] 恢复复习日志：' + reviewData.length + ' 条');
+    loadedCount += Object.keys(cloudLog).length;
+    console.log('[Supabase] 恢复复习日志（含合并保护）：' + Object.keys(cloudLog).length + ' 条');
   }
 
   // 3. 设置项（始终用云端版本；未找到的 key 清空本地残留）
