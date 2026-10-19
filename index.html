@@ -433,6 +433,23 @@
   }
   .guide-btn:active { transform: scale(0.97); }
 
+  /* 点按式引导：让用户自己点进目标（如首页→学习计划），隐藏主按钮，仅留"以后再说" */
+  .guide-skip {
+    align-self: center; font-size: 11px; color: var(--ink-light);
+    letter-spacing: 0.08em; text-decoration: underline; text-underline-offset: 3px;
+    cursor: pointer; padding: 4px 2px; display: none; white-space: nowrap;
+  }
+  .guide-skip:active { color: var(--ink); }
+  .guide-hint {
+    font-size: 11px; color: var(--ink-light); margin-top: 6px; letter-spacing: 0.06em;
+  }
+  /* 透明命中区：盖在高亮目标上，点它等于点目标本身（穿透引导遮罩） */
+  .guide-hit {
+    position: fixed; z-index: 212; background: transparent; border-radius: 10px;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .guide-hit:active { background: rgba(212,168,87,0.18); }
+
   .guide-steps {
     display: flex; gap: 6px; justify-content: center; margin-top: 10px;
   }
@@ -467,6 +484,13 @@
     font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase;
     color: var(--ink-light); padding-bottom: 8px; border-bottom: var(--border-w) solid var(--ink); margin-bottom: 4px;
     display: flex; align-items: center; justify-content: space-between;
+  }
+  .label-left { display: inline-flex; align-items: center; }
+  /* 在学卡册数量徽标：随学习计划词书勾选联动 */
+  .pack-count-chip {
+    font-style: normal; font-size: 10px; letter-spacing: 0.08em; line-height: 1;
+    color: #F2E8D5; background: var(--ink); border-radius: 999px; padding: 3px 8px;
+    margin-left: 8px; display: inline-block; transform: translateY(-1px);
   }
   .search-toggle {
     background: none; border: var(--border-w) solid var(--ink); border-radius: var(--radius);
@@ -1382,6 +1406,68 @@
     font-size: 12px; color: var(--ink-light); line-height: 1.8; letter-spacing: 0.03em;
     text-align: center; padding: 8px 0;
   }
+  /* ── 选择词书（新词出题范围） ── */
+  .pack-select-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 0 4px; border-top: var(--border-w) solid var(--ink); margin-top: 6px;
+  }
+  .pack-select-title {
+    font-size: 13px; letter-spacing: 0.15em; font-weight: bold; color: var(--ink);
+  }
+  .pack-select-title small {
+    display: block; font-size: 10px; font-weight: normal; letter-spacing: 0.05em;
+    color: var(--ink-light); margin-top: 2px;
+  }
+  .pack-select-count {
+    font-size: 11px; color: var(--ink-light);
+    background: var(--manila-dk); border: 2px solid var(--ink);
+    padding: 3px 10px; border-radius: 99px; white-space: nowrap;
+  }
+  .pack-select-count.warn { color: #8A4B08; background: #F5E3C2; }
+  .pack-select-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+    padding: 8px 0 4px;
+  }
+  .pack-select-item {
+    position: relative; display: flex; align-items: center; gap: 10px;
+    background: var(--manila); border: var(--border-w) solid var(--ink);
+    border-radius: 8px; padding: 10px 12px; cursor: pointer; user-select: none;
+    box-shadow: 2px 2px 0 var(--ink);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  }
+  .pack-select-item:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--ink); }
+  .pack-select-item .psi-glyph { flex: 0 0 auto; width: 26px; height: 26px; }
+  .pack-select-item .psi-glyph svg { width: 100%; height: 100%; }
+  .pack-select-item .psi-info { flex: 1; min-width: 0; }
+  .pack-select-item .psi-name { font-size: 13px; font-weight: bold; letter-spacing: 0.08em; }
+  .pack-select-item .psi-progress { font-size: 10px; color: var(--ink-light); margin-top: 2px; letter-spacing: 0.04em; }
+  .pack-select-item .psi-mini-bar {
+    height: 4px; background: var(--paper); border: 1px solid var(--ink);
+    border-radius: 99px; margin-top: 4px; overflow: hidden;
+  }
+  .pack-select-item .psi-mini-bar i { display: block; height: 100%; background: var(--ink); }
+  /* 定向词书：顺序 / 乱序 切换 */
+  .pack-select-item .psi-order-row { display: flex; gap: 6px; margin-top: 6px; }
+  .pack-select-item .psi-order-chip {
+    font-size: 10px; letter-spacing: 0.1em; padding: 2px 9px;
+    border: 1.5px solid var(--ink); border-radius: 3px;
+    color: var(--ink-light); background: var(--paper); cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .pack-select-item .psi-order-chip.on { background: var(--ink); color: var(--manila); font-weight: bold; }
+  .pack-select-item .psi-order-chip:active { transform: translate(1px, 1px); }
+  .pack-select-item .psi-order-note {
+    font-size: 9px; color: #8A4B08; letter-spacing: 0.02em; margin-top: 4px; line-height: 1.3;
+  }
+  .pack-select-item .psi-check {
+    flex: 0 0 auto; width: 18px; height: 18px; border: 2px solid var(--ink);
+    border-radius: 4px; background: var(--paper);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pack-select-item .psi-check svg { width: 12px; height: 12px; opacity: 0; }
+  .pack-select-item.selected { background: var(--manila-dk); }
+  .pack-select-item.selected .psi-check { background: var(--ink); }
+  .pack-select-item.selected .psi-check svg { opacity: 1; }
   .empty-state {
     display: flex; flex-direction: column; align-items: center;
     justify-content: center; gap: 16px; flex: 1; padding: 60px 32px; text-align: center;
@@ -2789,6 +2875,7 @@
         <div class="guide-text" id="guide-text"></div>
         <div class="guide-actions">
           <button class="guide-btn" id="guide-btn-next">下一步</button>
+          <span class="guide-skip" id="guide-skip">以后再说</span>
         </div>
         <div class="guide-steps">
           <div class="guide-step-dot active" id="guide-dot-0"></div>
@@ -2875,7 +2962,7 @@
         </div>
       </div>
     </div>
-    <p class="section-label" id="all-cards-label">全部卡册<button class="search-toggle" onclick="playCardTapSound();openSearch()" aria-label="搜索成语"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg></button></p>
+    <p class="section-label" id="all-cards-label"><span class="label-left">在学卡册<em class="pack-count-chip" id="studying-pack-count"></em></span><button class="search-toggle" onclick="playCardTapSound();openSearch()" aria-label="搜索成语"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg></button></p>
     <div class="pack-grid" id="pack-grid"></div>
     <div class="pack-detail" id="pack-detail">
       <div class="pack-detail-header">
@@ -3027,6 +3114,16 @@
         </div>
       </div>
       <p class="plan-tip" id="plan-tip">加油，今天还没开始学习哦</p>
+
+      <!-- 选择词书：新词出题范围 -->
+      <div class="pack-select-head">
+        <div class="pack-select-title">
+          选择词书
+          <small>新词将从所选词书中随机抽取</small>
+        </div>
+        <span class="pack-select-count" id="pack-select-count">已选 7/5</span>
+      </div>
+      <div class="pack-select-grid" id="pack-select-grid"></div>
     </div>
 
     <!-- 每日目标设置 -->
@@ -3206,7 +3303,7 @@
 <!-- 成语数据动态并行加载（非阻塞） -->
 <script>
 (function loadDataFiles() {
-  var total = 9, loaded = 0;
+  var total = 10, loaded = 0;
   window._dataReady = false;
   window._dataLoading = true;
 
@@ -3215,7 +3312,8 @@
     document.getElementById('data-progress-bar').style.width = (loaded/total*100) + '%';
     if (loaded === total) {
       IDIOMS.length = 0;
-      var bs = [IDIOMS_BATCH1,IDIOMS_BATCH2,IDIOMS_BATCH3,IDIOMS_BATCH4,IDIOMS_BATCH5,IDIOMS_BATCH6,IDIOMS_BATCH7,IDIOMS_BATCH8,IDIOMS_BATCH9];
+      var bs = [IDIOMS_BATCH1,IDIOMS_BATCH2,IDIOMS_BATCH3,IDIOMS_BATCH4,IDIOMS_BATCH5,IDIOMS_BATCH6,IDIOMS_BATCH7,IDIOMS_BATCH8,IDIOMS_BATCH9,
+                (typeof IDIOMS_BATCH10 !== 'undefined' ? IDIOMS_BATCH10 : null)];
       for (var b = 0; b < bs.length; b++) { if (bs[b]) IDIOMS.push.apply(IDIOMS, bs[b]); }
       window._dataReady = true;
       window._dataLoading = false;
@@ -3445,6 +3543,20 @@ const IDIOM_FREQ = {
   // Batch9扩展（id 475-499，原data10）
   479:'uncommon',481:'uncommon',483:'uncommon',491:'uncommon',
   492:'uncommon',493:'uncommon',494:'uncommon',496:'uncommon',
+
+  // ══════════════════════════════════════════════════
+  //  Batch10 · 逻辑公考新增（id 500-569）
+  // ══════════════════════════════════════════════════
+  500:'common',501:'common',502:'common',503:'common',505:'common',506:'common',507:'common',509:'common',
+  510:'common',511:'common',514:'common',515:'common',516:'common',518:'common',520:'common',521:'common',
+  522:'common',523:'common',526:'common',527:'common',529:'common',530:'common',531:'common',532:'common',
+  533:'common',536:'common',538:'common',539:'common',540:'common',541:'common',543:'common',544:'common',
+  545:'common',546:'common',547:'common',548:'common',549:'common',550:'common',551:'common',552:'common',
+  553:'common',555:'common',556:'common',559:'common',560:'common',561:'common',562:'common',563:'common',
+  564:'common',565:'common',567:'common',568:'common',569:'common',
+  504:'uncommon',508:'uncommon',512:'uncommon',513:'uncommon',517:'uncommon',519:'uncommon',524:'uncommon',
+  525:'uncommon',528:'uncommon',534:'uncommon',535:'uncommon',537:'uncommon',542:'uncommon',554:'uncommon',
+  557:'uncommon',558:'uncommon',566:'uncommon',
 
   // ══════════════════════════════════════════════════
   //  生僻 rare  — 书面语或典故色彩较浓
@@ -3726,6 +3838,21 @@ const ILLUS_FILE = {
   475:'id475_laojifuli.jpg',476:'id476_dairuomuji.jpg',477:'id477_deguoqieguo.jpg',478:'id478_haogaowuyuan.jpg',479:'id479_xiangjianheji.jpg',480:'id480_zuohuaibuluan.jpg',481:'id481_guanninggexi.jpg',482:'id482_luojingxiashi.jpg',483:'id483_hefatongyan.jpg',484:'id484_zhisangmahuai.jpg',
   485:'id485_yiyiguxing.jpg',486:'id486_jinxinjieli.jpg',487:'id487_chengrenzhiwei.jpg',488:'id488_tusigoupeng.jpg',489:'id489_niaojingongcang.jpg',490:'id490_zhigaoqiyang.jpg',491:'id491_jinnangmiaoji.jpg',492:'id492_caojianrenming.jpg',493:'id493_niudaoxiaoshi.jpg',494:'id494_yanjianyigai.jpg',
   495:'id495_hangxieyiqi.jpg',496:'id496_daoxingnishi.jpg',497:'id497_weihuzuochang.jpg',498:'id498_youshiwukong.jpg',499:'id499_zhongliudizhu.jpg',
+  /* Batch10 · 逻辑公考新增（id 500-569，插图按成语名称从「已生成插图」匹配） */
+  500:'id500_huzhiyuchu.jpg',501:'id501_fenmodengchang.jpg',502:'id502_zhanlutoujiao.jpg',503:'id503_yijuntuqi.jpg',504:'id504_hengkongchushi.jpg',
+  505:'id505_yingyunersheng.jpg',506:'id506_fangxingweiai.jpg',507:'id507_zhengzhengrishang.jpg',508:'id508_weiranchengfeng.jpg',509:'id509_rurizhongtian.jpg',
+  510:'id510_jinfeixibi.jpg',511:'id511_meikuangyuxia.jpg',512:'id512_nanyiweiji.jpg',513:'id513_houjiwuren.jpg',514:'id514_fenbenglixi.jpg',
+  515:'id515_tubengwajie.jpg',516:'id516_wuyingwuzong.jpg',517:'id517_xiaoshidaijin.jpg',518:'id518_yanxiaoyunsan.jpg',519:'id519_chenzhafanqi.jpg',
+  520:'id520_sihuifuran.jpg',521:'id521_juantuchonglai.jpg',522:'id522_fanghuanweiran.jpg',523:'id523_youbeiwuhuan.jpg',524:'id524_changbeibuxie.jpg',
+  525:'id525_shuizhonglaoyue.jpg',526:'id526_yangtangzhifei.jpg',527:'id527_gexuesaoyang.jpg',528:'id528_wanroubuchuang.jpg',529:'id529_jiezeeryu.jpg',
+  530:'id530_shajiquluan.jpg',531:'id531_tangbidangche.jpg',532:'id532_pifuhanshu.jpg',533:'id533_yiluanjishi.jpg',534:'id534_yaodaobingchu.jpg',
+  535:'id535_biaobenjianzhi.jpg',536:'id536_chousibaojian.jpg',537:'id537_youbiaojili.jpg',538:'id538_shenruqianchu.jpg',539:'id539_tiaofenluxi.jpg',
+  540:'id540_youdifangshi.jpg',541:'id541_yindizhiyi.jpg',542:'id542_yinshizhiyi.jpg',543:'id543_xingzhiyouxiao.jpg',544:'id544_liganjianying.jpg',
+  545:'id545_yilaoyongyi.jpg',546:'id546_yicuerjiu.jpg',547:'id547_shiyuyuanwei.jpg',548:'id548_shideqifan.jpg',549:'id549_debuchangshi.jpg',
+  550:'id550_tulaowugong.jpg',551:'id551_guoyoubuji.jpg',552:'id552_dadazhekou.jpg',553:'id553_zhuojinjianzhou.jpg',554:'id554_zuozhiyouchu.jpg',
+  555:'id555_gucishibi.jpg',556:'id556_yinchimaoliang.jpg',557:'id557_liyoubudai.jpg',558:'id558_dumunanzhi.jpg',559:'id559_renyunyiyun.jpg',
+  560:'id560_shirenyahui.jpg',561:'id561_yibuyiqu.jpg',562:'id562_suibozhuliu.jpg',563:'id563_zhaomaohuahu.jpg',564:'id564_nanjubeizhi.jpg',
+  565:'id565_zhaobenxuanke.jpg',566:'id566_shuerbuzuo.jpg',567:'id567_shengbanyingtao.jpg',568:'id568_chencilandiao.jpg',569:'id569_laoshengchangtan.jpg',
 };
 
 function getIllusPath(idiomId) {
@@ -3813,16 +3940,222 @@ const PACKS = [
   {
     name: '讽喻巧辩', tags: ['文学','比喻'],
     glyph: '<svg viewBox="0 0 26 26" fill="none" stroke="#1A1209" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 Q3 3 13 3 Q23 3 23 10"/><path d="M3 10 L5 21 Q13 24 21 21 L23 10"/><circle cx="9" cy="12" r="1.5" fill="#1A1209"/><circle cx="17" cy="12" r="1.5" fill="#1A1209"/><path d="M10 16 Q13 19 16 16"/></svg>'
+  },
+  {
+    /* 定向词书：面向公考备考用户，词条按 id 显式归属（见 PACK_ASSIGN），
+       不参与标签分类；默认不勾选（optIn），由用户在学习计划中单独选择 */
+    name: '逻辑公考', tags: [], optIn: true, ordered: true,
+    glyph: '<svg viewBox="0 0 26 26" fill="none" stroke="#1A1209" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="18" height="19" rx="2"/><path d="M9 4 L9 2"/><path d="M17 4 L17 2"/><path d="M7 10 L9 12 L12 8"/><line x1="14" y1="11" x2="19" y2="11"/><path d="M7 17 L9 19 L12 15"/><line x1="14" y1="18" x2="19" y2="18"/></svg>'
   }
 ];
 
+/* ═══ 定向词书归属表 ═══
+   定向词书不按标签归类，而是按 id 显式归属；值 = 词书内顺序（严格对应清单顺序）。
+   收进定向词书的词条会从原 7 大主题词书移除，避免同一词条重复留存。 */
+var PACK_ASSIGN = {
+  '逻辑公考': {
+  500:1, 501:2, 502:3, 503:4, 504:5, 505:6, 383:7, 506:8,
+  507:9, 508:10, 147:11, 509:12, 510:13, 511:14, 512:15, 513:16,
+  194:17, 62:18, 341:19, 514:20, 515:21, 516:22, 517:23, 518:24,
+  519:25, 520:26, 521:27, 155:28, 98:29, 522:30, 523:31, 407:32,
+  524:33, 180:34, 4:35, 150:36, 525:37, 526:38, 527:39, 212:40,
+  176:41, 137:42, 528:43, 529:44, 530:45, 531:46, 532:47, 533:48,
+  263:49, 534:50, 535:51, 160:52, 536:53, 537:54, 538:55, 539:56,
+  540:57, 295:58, 154:59, 541:60, 446:61, 542:62, 543:63, 544:64,
+  545:65, 546:66, 547:67, 548:68, 549:69, 550:70, 233:71, 408:72,
+  551:73, 552:74, 553:75, 554:76, 555:77, 556:78, 557:79, 558:80,
+  559:81, 560:82, 561:83, 562:84, 563:85, 211:86, 128:87, 564:88,
+  565:89, 566:90, 567:91, 151:92, 568:93, 569:94, 146:95, 75:96,
+  66:97, 206:98, 429:99, 135:100, 9:101, 365:102, 403:103, 2:104,
+  453:105, 0:106, 209:107, 205:108, 207:109, 91:110, 142:111, 163:112,
+  149:113, 437:114, 177:115, 1:116, 270:117, 414:118, 485:119, 463:120,
+  189:121, 88:122, 329:123, 279:124, 334:125, 271:126, 254:127, 169:128,
+  393:129, 392:130, 84:131, 148:132, 125:133, 451:134, 179:135, 266:136,
+  362:137, 386:138, 326:139, 461:140, 159:141, 394:142, 208:143, 73:144,
+  419:145, 297:146, 267:147, 102:148, 374:149, 192:150, 465:151, 78:152,
+  181:153, 388:154, 494:155, 187:156, 226:157, 273:158, 287:159, 482:160,
+  97:161, 96:162, 382:163,
+  }
+};
+
+
+/* 取某词条的定向词书归属（无归属返回 null） */
+function getPackAssignment(idiom) {
+  if (!idiom) return null;
+  for (var pname in PACK_ASSIGN) {
+    if (Object.prototype.hasOwnProperty.call(PACK_ASSIGN[pname], idiom.id)) {
+      return { pack: pname, order: PACK_ASSIGN[pname][idiom.id] };
+    }
+  }
+  return null;
+}
+
 function getIdiomsForPack(pack) {
-  return IDIOMS.filter(idiom => idiom.tags.some(t => pack.tags.includes(t)));
+  var assign = PACK_ASSIGN[pack.name];
+  if (assign) {
+    // 定向词书：按 id 显式归属，按清单顺序返回
+    var seen = {};
+    return IDIOMS.filter(function(idiom) {
+      if (assign[idiom.id] === undefined) return false;
+      if (seen[idiom.id]) return false; // 历史数据存在同 id 两条记录，仅取首条
+      seen[idiom.id] = true;
+      return true;
+    }).sort(function(a, b) { return assign[a.id] - assign[b.id]; });
+  }
+  // 主题词书：按标签归类，但已被定向词书收走的词条不再计入（避免重复留存）
+  return IDIOMS.filter(function(idiom) {
+    if (getPackAssignment(idiom)) return false;
+    return idiom.tags && idiom.tags.some(function(t) { return pack.tags.indexOf(t) >= 0; });
+  });
 }
 
 function getPackDoneCount(pack) {
   const packIdioms = getIdiomsForPack(pack);
   return packIdioms.filter(idiom => state.done.includes(IDIOMS.indexOf(idiom))).length;
+}
+
+/* ═══ 词书选择（新词出题范围）═══
+   规则：
+   - 词书 = 首页的 7 大主题卡册
+   - 最少 1 本，最多 5 本
+   - 未选择时默认全选（老用户平滑过渡）
+   - 存于 riZhiLu_plan 的 selectedPacks 字段（随 settings 云端同步）
+   - 出题：已选词书的未学成语放入同一池子均匀随机抽 */
+const PACK_SELECT_MAX = 5;
+
+function getSelectedPacks() {
+  const plan = loadPlan();
+  const sel = plan.selectedPacks;
+  // 未选择（老数据/新用户）→ 默认全选 7 大主题词书；定向词书（optIn）需用户主动勾选
+  if (!Array.isArray(sel) || sel.length === 0) {
+    return PACKS.map((_, i) => i).filter(i => !PACKS[i].optIn);
+  }
+  return sel.filter(i => Number.isInteger(i) && i >= 0 && i < PACKS.length);
+}
+
+function saveSelectedPacks(packIndices) {
+  const plan = loadPlan();
+  plan.selectedPacks = packIndices.slice().sort((a, b) => a - b);
+  savePlan(plan);
+}
+
+// 已选词书的未学成语索引池（去重：一个成语可能同属多本词书）
+function getUnlearnedFromSelectedPacks() {
+  const set = new Set();
+  getSelectedPacks().forEach(pi => {
+    getIdiomsForPack(PACKS[pi]).forEach(idiom => {
+      const idx = IDIOMS.indexOf(idiom);
+      if (!state.done.includes(idx)) set.add(idx);
+    });
+  });
+  return Array.from(set);
+}
+
+/* ═══ 定向词书的「顺序 / 乱序」出题模式 ═══
+   - 顺序：严格按词书顺序（= 清单顺序）取下一个未学成语
+   - 乱序：与其他词书一致，从未学池中随机抽取
+   - 顺序模式仅在「只勾选了该定向词书」时生效，多选混抽时按乱序处理 */
+function getOrderedPackIndex() {
+  for (var i = 0; i < PACKS.length; i++) { if (PACKS[i].ordered) return i; }
+  return -1;
+}
+function getPackOrderMode() {
+  return loadPlan().packOrderMode === 'shuffle' ? 'shuffle' : 'seq';
+}
+function isOrderedSeqActive() {
+  var oi = getOrderedPackIndex();
+  if (oi < 0) return false;
+  var sel = getSelectedPacks();
+  return sel.length === 1 && sel[0] === oi && getPackOrderMode() === 'seq';
+}
+function setPackOrderMode(mode) {
+  var plan = loadPlan();
+  plan.packOrderMode = (mode === 'shuffle') ? 'shuffle' : 'seq';
+  savePlan(plan);
+  renderPackSelectPanel();
+  updateNewWordPreview();
+  playCardTapSound();
+  schedulePlanCloudSync();
+}
+
+/* 取下一个新词索引：顺序模式取队首，其余情况随机；池空返回 -1 */
+function pickNextNewIndex(exclude) {
+  var pool = getUnlearnedFromSelectedPacks();
+  if (exclude !== undefined) pool = pool.filter(function(i) { return i !== exclude; });
+  if (!pool.length) return -1;
+  if (isOrderedSeqActive()) return pool[0]; // 池由 getIdiomsForPack 按顺序构造，Set 保持插入顺序
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// 渲染词书选择面板（plan 页今日进度板块内）
+function renderPackSelectPanel() {
+  const grid = document.getElementById('pack-select-grid');
+  const countEl = document.getElementById('pack-select-count');
+  if (!grid || !countEl) return;
+  const selected = getSelectedPacks();
+  const isDefault = !Array.isArray(loadPlan().selectedPacks) || loadPlan().selectedPacks.length === 0;
+  const orderMode = getPackOrderMode();
+  grid.innerHTML = PACKS.map((pack, pi) => {
+    const total = getIdiomsForPack(pack).length;
+    const done = getPackDoneCount(pack);
+    const pct = total > 0 ? Math.round(done / total * 100) : 0;
+    const isSel = selected.includes(pi);
+    const orderRow = pack.ordered ? `<div class="psi-order-row">
+        <span class="psi-order-chip ${orderMode === 'seq' ? 'on' : ''}" onclick="event.stopPropagation();setPackOrderMode('seq')">顺序</span>
+        <span class="psi-order-chip ${orderMode === 'shuffle' ? 'on' : ''}" onclick="event.stopPropagation();setPackOrderMode('shuffle')">乱序</span>
+      </div>${isSel && selected.length > 1 && orderMode === 'seq' ? '<div class="psi-order-note">与其他词书同选时按乱序抽词</div>' : ''}` : '';
+    return `<div class="pack-select-item ${isSel ? 'selected' : ''}" onclick="togglePackSelect(${pi})">
+      <div class="psi-glyph">${pack.glyph}</div>
+      <div class="psi-info">
+        <div class="psi-name">${pack.name}</div>
+        <div class="psi-progress">${done}/${total} 已学</div>
+        <div class="psi-mini-bar"><i style="width:${pct}%"></i></div>
+        ${orderRow}
+      </div>
+      <div class="psi-check">
+        <svg viewBox="0 0 14 14" fill="none" stroke="#F2E8D5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8 L6 12 L13 3"/></svg>
+      </div>
+    </div>`;
+  }).join('');
+  countEl.textContent = isDefault ? '默认全部' : `已选 ${selected.length}/${PACK_SELECT_MAX}`;
+  countEl.classList.toggle('warn', !isDefault && (selected.length > PACK_SELECT_MAX || selected.length === 0));
+}
+
+// 切换词书选中态（约束：至少 1 本、最多 5 本；即时保存并同步云端）
+function togglePackSelect(pi) {
+  let selected = getSelectedPacks();
+  if (selected.includes(pi)) {
+    if (selected.length <= 1) {
+      showToast('至少选择 1 本词书', 'warning');
+      return;
+    }
+    selected = selected.filter(i => i !== pi);
+  } else {
+    if (selected.length >= PACK_SELECT_MAX) {
+      showToast(`最多选择 ${PACK_SELECT_MAX} 本词书`, 'warning');
+      return;
+    }
+    selected = selected.concat(pi);
+  }
+  saveSelectedPacks(selected);
+  renderPackSelectPanel();
+  renderPackGrid(); // 首页「在学卡册」联动：勾选哪册首页显示哪册
+  updateNewWordPreview(); // 词书变化后刷新首页新词预览
+  playCardTapSound();
+  schedulePlanCloudSync();
+}
+var _packSelectSyncTimer = null;
+// plan 走云端 settings 同步：防抖 1s 后全量上传（连续切换只传最后一次），防止下次启动被云端旧数据覆写
+function schedulePlanCloudSync() {
+  if (_packSelectSyncTimer) clearTimeout(_packSelectSyncTimer);
+  _packSelectSyncTimer = setTimeout(function() {
+    _packSelectSyncTimer = null;
+    if (window.SupabaseSync && typeof window.SupabaseSync.saveCloudData === 'function') {
+      window.SupabaseSync.saveCloudData().catch(function(e) {
+        console.warn('[Plan] 学习计划云端同步失败', e);
+      });
+    }
+  }, 1000);
 }
 
 let state = { current: 0, hintRevealed: 0, done: [], screen: 'home' };
@@ -4761,7 +5094,7 @@ emptyReviewSound.volume = 0.5;
   // onclick 中已包含显式音效函数 → 跳过
   var SOUND_RE = /play(Nav|CardTap|Entry|Album|Deck|Hint|Correct|Fail|Dull|FavBook|FlipPage|EmptyReview)Sound|SFX\.(flip|stamp|soft)/;
   // 内部会播放音效的函数名 → 跳过（避免双重音效）
-  var IMPLICIT_RE = /toggleFavCurrent|handleCheck|showDetail\b|openIdiomDetail|showStatList|openBookExpand|closeBookExpand|goNextCard|onCardTap|flyToCard|checkReviewGuess|checkGuess|startReview/;
+  var IMPLICIT_RE = /toggleFavCurrent|handleCheck|showDetail\b|openIdiomDetail|showStatList|openBookExpand|closeBookExpand|goNextCard|onCardTap|flyToCard|checkReviewGuess|checkGuess|startReview|togglePackSelect|setPackOrderMode/;
   // 非按钮类交互元素 → 跳过（字卡、槽位、线索框、插图、遮罩等）
   var SKIP_ID_RE = /^gc-|^cc-|^clue-|clue-zone|illus-box|lightbox|search-overlay|guide-|-mask$/;
   var SKIP_CLS_RE = /clue-zone|illus-box|char-card|clue-char/;
@@ -5160,6 +5493,7 @@ function renderPlanPage() {
   if (goalDone) goalCard.classList.add('completed');
   else goalCard.classList.remove('completed');
   initSfxToggle();
+  renderPackSelectPanel();
 }
 
 function getWeekKey() {
@@ -5301,6 +5635,18 @@ const GUIDE_STEPS = {
     {
       text: '点击此处，设定你的<strong>学习计划</strong>吧。',
       getTarget: function() { return document.getElementById('header-count-btn'); },
+      cardOffset: 80,
+      // 点按式：用户直接点高亮的学习计划入口进入（不再走"知道了"），从而与计划页的词书引导无缝接力
+      clickThrough: true,
+      hint: '轻点上方高亮处直接进入 →',
+      onActivate: function(target) { target.click(); }
+    }
+  ],
+  /* 词书选择引导：首页引导结束后，首次进入计划页时接力提示（完整新手路径） */
+  packSelect: [
+    {
+      text: '在这里勾选要学习的<strong>词书</strong>（1~5 本），之后的<strong>新词</strong>将从所选词书中随机抽取。',
+      getTarget: function() { return document.querySelector('#screen-plan .pack-select-head'); },
       cardOffset: 80
     }
   ],
@@ -5342,6 +5688,7 @@ var guideActive = false;
 function guideDoneKey(mode) {
   if (mode === 'learn') return 'riZhiLu_learnGuideDone';
   if (mode === 'plan') return 'riZhiLu_planGuideDone';
+  if (mode === 'packSelect') return 'riZhiLu_packSelectGuideDone';
   return 'riZhiLu_reviewGuideDone';
 }
 function hasGuideDone(mode) {
@@ -5382,10 +5729,11 @@ function updateGuideStep() {
     return;
   }
 
-  // 清理上一次的额外高亮框
+  // 清理上一次的额外高亮框 / 点按命中区
   var overlay = document.getElementById('guide-overlay');
   var extras = overlay.querySelectorAll('.guide-hl-extra');
   for (var ei = 0; ei < extras.length; ei++) { extras[ei].remove(); }
+  if (_guideHitEl) { _guideHitEl.remove(); _guideHitEl = null; }
 
   // 逐一放置高亮框
   for (var ti = 0; ti < targets.length; ti++) {
@@ -5425,8 +5773,8 @@ function updateGuideStep() {
     floatCard.style.bottom = 'auto';
   }
 
-  // 文字
-  document.getElementById('guide-text').innerHTML = step.text;
+  // 文字（点按式步骤追加一行操作提示）
+  document.getElementById('guide-text').innerHTML = step.text + (step.hint ? '<div class="guide-hint">' + step.hint + '</div>' : '');
 
   // 步骤点
   for (var i = 0; i < 3; i++) {
@@ -5436,9 +5784,38 @@ function updateGuideStep() {
   }
 
   // 按钮文字（各引导模式最后一步的按钮可定制）
-  var lastBtnText = { review: '开始答题', learn: '开始答题', plan: '知道了' }[guideMode] || '开始答题';
+  var lastBtnText = { review: '开始答题', learn: '开始答题', plan: '知道了', packSelect: '知道了' }[guideMode] || '开始答题';
   document.getElementById('guide-btn-next').textContent = guideStep === steps.length - 1 ? lastBtnText : '下一步';
+
+  /* ── 点按式步骤：在目标上方铺透明命中区，用户点目标即触发其自身行为 ──
+     主按钮隐藏，仅保留"以后再说"作为退出通道 */
+  var btnNext = document.getElementById('guide-btn-next');
+  var skipEl = document.getElementById('guide-skip');
+  if (step.clickThrough) {
+    btnNext.style.display = 'none';
+    skipEl.style.display = 'block';
+    var hit = document.createElement('div');
+    hit.className = 'guide-hit';
+    hit.style.top = (primaryRect.top - 6) + 'px';
+    hit.style.left = (primaryRect.left - 6) + 'px';
+    hit.style.width = (primaryRect.width + 12) + 'px';
+    hit.style.height = (primaryRect.height + 12) + 'px';
+    hit.addEventListener('click', function(ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      playCardTapSound();
+      var act = step.onActivate;
+      dismissGuide(); // 先收起引导（记录已完成 + 置接力标记），再执行目标行为
+      if (typeof act === 'function') act(target);
+    }, false);
+    document.body.appendChild(hit);
+    _guideHitEl = hit;
+  } else {
+    btnNext.style.display = '';
+    skipEl.style.display = 'none';
+  }
 }
+var _guideHitEl = null;
 
 function guideNext() {
   var steps = GUIDE_STEPS[guideMode] || GUIDE_STEPS.review;
@@ -5453,6 +5830,11 @@ function guideNext() {
 function dismissGuide() {
   guideActive = false;
   markGuideDone();
+  // 首页学习计划引导结束 → 进入"等待进计划页"状态，首次进计划页时接力引导词书选择
+  if (guideMode === 'plan') {
+    try { localStorage.setItem('riZhiLu_packGuidePending', '1'); } catch(e) {}
+  }
+  if (_guideHitEl) { _guideHitEl.remove(); _guideHitEl = null; }
   document.getElementById('guide-overlay').classList.remove('active');
   document.getElementById('guide-hl').classList.remove('active');
 }
@@ -5469,8 +5851,27 @@ function maybeStartPlanGuide() {
   startGuide('plan');
 }
 
+/* ── 词书选择接力引导：首页学习计划引导结束后，首次进入计划页时提示词书选择板块 ──
+   与首页引导构成完整新手路径：进入首页 → 点学习计划 → 完成词书选择 */
+function maybeStartPackSelectGuide() {
+  if (guideActive) return;
+  if (state.screen !== 'plan') return;
+  if (hasGuideDone('packSelect')) return;
+  var pending = false;
+  try { pending = localStorage.getItem('riZhiLu_packGuidePending') === '1'; } catch(e) {}
+  if (!pending) return; // 仅对接"看过首页学习计划引导"的用户，老用户不打扰
+  try { localStorage.removeItem('riZhiLu_packGuidePending'); } catch(e) {}
+  startGuide('packSelect');
+}
+
 // 绑定引导按钮
 document.getElementById('guide-btn-next').addEventListener('click', function(e) { e.stopPropagation(); playCardTapSound(); guideNext(); });
+// 「以后再说」：点按式步骤的退出通道（同样置接力标记，之后进计划页仍会引导词书选择）
+document.getElementById('guide-skip').addEventListener('click', function(e) {
+  e.stopPropagation();
+  playCardTapSound();
+  dismissGuide();
+});
 
 // 启动触发：默认首页不经 showScreen，这里兜底（2.5s 确保晚于首访登录弹窗的 1.5s，避免两层弹窗打架）
 setTimeout(maybeStartPlanGuide, 2500);
@@ -5507,6 +5908,18 @@ window.addEventListener('message', function(e) {
         document.getElementById('guide-overlay').classList.add('active');
       });
     });
+  } else if (e.data === 'forceStartPackSelectGuide') {
+    // 预览调试：先切到计划页再触发词书选择引导（等待入场动画结束）
+    try { localStorage.removeItem('riZhiLu_packSelectGuideDone'); } catch(err) {}
+    renderPlanPage();
+    showScreen('plan');
+    guideMode = 'packSelect';
+    guideStep = 0;
+    guideActive = true;
+    setTimeout(function() {
+      updateGuideStep();
+      document.getElementById('guide-overlay').classList.add('active');
+    }, 450);
   }
 });
 
@@ -5562,9 +5975,39 @@ function showScreen(name, isBack) {
     if (layer) { layer.style.overflow = 'hidden'; layer.classList.remove('expanded'); }
     bookExpandState = { open: false, mode: null };
     renderReviewPreview();
+    updateNewWordPreview(); // 回首页时同步新词预览（词书选择/学习进度可能已变化）
     setTimeout(maybeStartPlanGuide, 600); // 首页稳定后提示学习计划入口（仅首次）
   }
   if (name === 'collect') renderCollectList();
+}
+
+/* ── 新词预览刷新：从已选词书的未学成语中随机 ──
+   词书全部学完时保留原卡面，仅提示用户去选新词书 */
+function updateNewWordPreview() {
+  const charsEl = document.getElementById('preview-chars');
+  const hintEl = document.getElementById('preview-hint');
+  if (!charsEl || !hintEl) return;
+  const pool = getUnlearnedFromSelectedPacks();
+  if (pool.length === 0) {
+    hintEl.textContent = '词书已学完，去选择新词书吧';
+    return;
+  }
+  // 顺序模式：始终展示队首（下一个要学的词）；乱序：保持当前预览或随机换一个
+  var nextIdx;
+  if (isOrderedSeqActive()) {
+    nextIdx = pool[0];
+  } else {
+    nextIdx = pool.includes(previewIndex) ? previewIndex : pool[Math.floor(Math.random() * pool.length)];
+  }
+  if (nextIdx !== previewIndex) {
+    previewIndex = nextIdx;
+    previewRevealIdx = Math.floor(Math.random() * 4);
+  }
+  const top = IDIOMS[previewIndex];
+  charsEl.innerHTML = top.chars.map((c, i) =>
+    `<div class="clue-char ${i !== previewRevealIdx ? 'hidden' : ''}">${c}</div>`
+  ).join('');
+  hintEl.textContent = top.clue.slice(0, 20) + '…';
 }
 
 function renderHome() {
@@ -5583,26 +6026,29 @@ function renderHome() {
   if (layer) { layer.style.overflow = 'hidden'; layer.classList.remove('expanded'); }
   bookExpandState = { open: false, mode: null };
 
-  // 如果当前预览成语已学过，换一个未学的
-  if (state.done.includes(previewIndex)) {
-    const unlearned = IDIOMS.map((_, i) => i).filter(i => !state.done.includes(i));
-    if (unlearned.length > 0) {
-      previewIndex = unlearned[Math.floor(Math.random() * unlearned.length)];
-      previewRevealIdx = Math.floor(Math.random() * 4);
-    }
-  }
-  const top = IDIOMS[previewIndex];
-  document.getElementById('preview-chars').innerHTML = top.chars.map((c, i) =>
-    `<div class="clue-char ${i !== previewRevealIdx ? 'hidden' : ''}">${c}</div>`
-  ).join('');
-  document.getElementById('preview-hint').textContent = top.clue.slice(0, 20) + '…';
+  // 新词预览：从已选词书的未学成语中随机（词书学完时显示提示）
+  updateNewWordPreview();
   document.getElementById('deck-preview').onclick = () => {
     playDeckSound();
+    updateNewWordPreview(); // 确保预览与词书池一致
     const plan = loadPlan();
     const todayLearned = getTodayLearnedCount();
-    const unlearned = IDIOMS.filter((_, i) => !state.done.includes(i));
-    if (unlearned.length === 0 || todayLearned >= plan.dailyGoal) {
-      // 全部学完或今日目标达成：抖动提示
+    const pool = getUnlearnedFromSelectedPacks();
+    if (pool.length === 0) {
+      // 已选词书全部学完：抖动 + 引导去选择新词书
+      const container = document.getElementById('deck-preview');
+      if (container) {
+        container.classList.add('shake-hint');
+        setTimeout(() => container.classList.remove('shake-hint'), 500);
+      }
+      if (confirm('所选词书已全部学完\n是否前往学习计划选择新词书？')) {
+        closeBookExpand();
+        showScreen('plan');
+      }
+      return;
+    }
+    if (todayLearned >= plan.dailyGoal) {
+      // 今日目标达成：抖动提示
       const container = document.getElementById('deck-preview');
       if (container) {
         container.classList.add('shake-hint');
@@ -5613,25 +6059,12 @@ function renderHome() {
     flyToCard(() => startCard(previewIndex, previewRevealIdx));
   };
 
-  // 渲染卡包网格
-  const grid = document.getElementById('pack-grid');
-  grid.innerHTML = PACKS.map((pack, pi) => {
-    const idiomCount = getIdiomsForPack(pack).length;
-    const doneCount = getPackDoneCount(pack);
-    const pct = idiomCount > 0 ? Math.round(doneCount / idiomCount * 100) : 0;
-    return `<div class="pack-card" onclick="playAlbumSound();openPackDetail(${pi})">
-      <div class="pack-card-clasp"></div>
-      <div class="pack-card-fold"></div>
-      <div class="pack-card-progress"><div class="pack-card-progress-bar" style="height:${pct}%"></div></div>
-      <div class="pack-card-glyph">${pack.glyph}</div>
-      <div class="pack-card-name">${pack.name.split('').join('<br>')}</div>
-      <div class="pack-card-count">${idiomCount} 张</div>
-    </div>`;
-  }).join('');
+  // 渲染卡包网格（仅显示学习计划中勾选的词书）
+  renderPackGrid();
 
   // 关闭卡包详情
   document.getElementById('pack-detail').classList.remove('active');
-  grid.style.display = '';
+  document.getElementById('pack-grid').style.display = '';
 
   updateProgress();
 }
@@ -5686,6 +6119,31 @@ function openPackDetail(packIndex) {
 function closePackDetail() {
   document.getElementById('pack-detail').classList.remove('active');
   document.getElementById('pack-grid').style.display = '';
+}
+
+/* ── 首页卡册网格：只显示学习计划中勾选的词书（在学卡册） ──
+   计划内勾选哪册，首页就显示哪册；数量徽标同步更新 */
+function renderPackGrid() {
+  const grid = document.getElementById('pack-grid');
+  if (!grid) return;
+  const selected = getSelectedPacks();
+  grid.innerHTML = selected.map(pi => {
+    const pack = PACKS[pi];
+    const idiomCount = getIdiomsForPack(pack).length;
+    const doneCount = getPackDoneCount(pack);
+    const pct = idiomCount > 0 ? Math.round(doneCount / idiomCount * 100) : 0;
+    return `<div class="pack-card" onclick="playAlbumSound();openPackDetail(${pi})">
+      <div class="pack-card-clasp"></div>
+      <div class="pack-card-fold"></div>
+      <div class="pack-card-progress"><div class="pack-card-progress-bar" style="height:${pct}%"></div></div>
+      <div class="pack-card-glyph">${pack.glyph}</div>
+      <div class="pack-card-name">${pack.name.split('').join('<br>')}</div>
+      <div class="pack-card-count">${idiomCount} 张</div>
+    </div>`;
+  }).join('');
+  const chip = document.getElementById('studying-pack-count');
+  if (chip) chip.textContent = selected.length;
+  staggerPackCards();
 }
 
 function updateProgress() {
@@ -6243,9 +6701,15 @@ function goNextCard() {
       handleBack();
     }
   } else {
-    // 从新词展开层进入：按全局数组顺序走
-    const next = state.current + 1;
-    if (next < IDIOMS.length) startCard(next); else handleBack();
+    // 从新词入口进入：顺序模式取队首，乱序模式随机抽下一张
+    const nextIdx = pickNextNewIndex(state.current);
+    if (nextIdx >= 0) {
+      startCard(nextIdx);
+    } else {
+      // 已选词书全部学完：返回并提醒选新词书
+      showToast('所选词书已全部学完，去学习计划选择新词书吧', 'info');
+      handleBack();
+    }
   }
 }
 
@@ -6338,7 +6802,11 @@ showScreen = function(name, isBack) {
     }, 350);
   }
   _origShowScreen(name, isBack);
-  if (name === 'plan') renderEbbPreview();
+  if (name === 'plan') {
+    renderEbbPreview();
+    // 延迟到页面上滑入场动画（350ms）结束后再定位引导高亮框，避免位置错乱
+    setTimeout(maybeStartPackSelectGuide, 450);
+  }
 };
 
 // ── 卡包网格交错入场 ──

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rizhi-v8';
+const CACHE_NAME = 'rizhi-v9';
 const ASSETS = [
   './index.html',
   './manifest.json',
@@ -14,6 +14,7 @@ const ASSETS = [
   './chengyu-data-7.js',
   './chengyu-data-8.js',
   './chengyu-data-9.js',
+  './chengyu-data-10.js',
 ];
 
 // Install: cache core assets
