@@ -936,6 +936,9 @@
   }
   .guess-char.slot.correct { background: #E8F5D0; border-color: #2D6A0F; border-style: solid; }
   .guess-char.slot.wrong { background: #FDECEA; border-color: #8B1A1A; border-style: solid; }
+  .guess-char.slot { touch-action: none; }
+  .guess-char.slot.drag-lift { opacity: 0.35; transform: scale(0.94); }
+  .guess-char.slot.drop-hint { outline: 2px dashed #1D9E75; outline-offset: 2px; border-style: solid; }
   /* ── 文本输入行（复习模式） ── */
   .text-input-row { display: none; flex-direction: column; gap: 8px; }
   .text-input-row.active { display: flex; }
@@ -2823,13 +2826,19 @@
           <div class="yueli-rule-text"><strong>揭示</strong><br>随机揭示一张正确答案字卡（-3）</div>
         </div>
         <div class="yueli-rule-item">
-          <div class="yueli-rule-text"><strong>查证</strong><br>查证字卡或线索（-2）</div>
+          <div class="yueli-rule-text"><strong>查证字卡</strong><br>拖放大镜查证字卡（-1）</div>
+        </div>
+        <div class="yueli-rule-item">
+          <div class="yueli-rule-text"><strong>查看线索</strong><br>拖放或点击线索框揭示（-2）</div>
         </div>
         <div class="yueli-rule-item">
           <div class="yueli-rule-text"><strong>排除</strong><br>随机排除一张错误干扰字卡（-1）</div>
         </div>
         <div class="yueli-rule-item">
           <div class="yueli-rule-text"><strong>提示文字</strong><br>复习时点击遮盖字揭示（-1）</div>
+        </div>
+        <div class="yueli-rule-item">
+          <div class="yueli-rule-text"><strong>验证失败</strong><br>答题卡验证答案错误（-2）</div>
         </div>
       </div>
     </div>
@@ -4473,6 +4482,23 @@ function spendYueli(amount) {
   return true;
 }
 
+/* 惩罚性扣费（验证失败等被动场景）：与 spendYueli 的区别——
+   ① 余额不足时扣到 0 为止，不会"阻止"失败发生
+   ② 不弹登录提示框（惩罚场景弹窗体验差）
+   ③ 余额为 0 时静默跳过，不刷新不浮动 */
+function spendYueliPenalty(amount) {
+  const data = loadYueli();
+  if (data.balance <= 0) return;
+  const cost = Math.min(data.balance, amount);
+  data.balance -= cost;
+  if (data.balance === 0) {
+    data.yueliPrompted = false;  // 与 spendYueli 一致：清零后重置提示标记
+  }
+  saveYueli(data);
+  refreshYueliUI('flash');
+  showYueliFloat(-cost);
+}
+
 function gainYueli(amount, reason) {
   const data = loadYueli();
   data.balance += amount;
@@ -5269,6 +5295,7 @@ function startReviewCard() {
   }
   const item = list[currentIndex];
   const idiom = IDIOMS[item.index];
+  resetFailStreak('R' + currentIndex); // 换新题：清失败连击与常驻拼音气泡
 
   // 更新序号显示
   const plan = loadPlan();
@@ -5354,6 +5381,7 @@ function checkReviewGuess() {
     playCorrectSound();
     vibrateConfirm();
     // 正确
+    resetFailStreak('R' + reviewState.currentIndex);
     idiom.chars.forEach((_, i) => {
       const el = document.getElementById('gc-' + i);
       el.classList.remove('hidden'); el.classList.add('revealed', 'correct');
@@ -5398,12 +5426,16 @@ function checkReviewGuess() {
     }, 500);
   } else {
     playFailSound();
+    spendYueliPenalty(2);
+    showYueliToast('验证失败，-2 成知');
     // 错误：逐字标红绿
     idiom.chars.forEach((c, i) => {
       const el = document.getElementById('gc-' + i);
       if (val[i] === c) { el.classList.remove('hidden'); el.classList.add('revealed', 'correct'); }
       else if (!el.classList.contains('correct')) { el.classList.add('wrong'); setTimeout(() => el.classList.remove('wrong'), 600); }
     });
+    // 失败教学闭环：同题连败 2 次后，槽位上方常驻拼音
+    if (bumpFailStreak('R' + reviewState.currentIndex)) showFailPinyin(idiom);
   }
 }
 
@@ -6328,6 +6360,7 @@ function startCard(index, forceReveal, skipGoalCheck, packIndices) {
   }
 
   state.current = index; state.hintRevealed = 0;
+  resetFailStreak('L' + index); // 换新题：清失败连击与常驻拼音气泡
   const idiom = IDIOMS[index];
   const plan = loadPlan();
   const todayLearned = getTodayLearnedCount();
@@ -6351,7 +6384,7 @@ function startCard(index, forceReveal, skipGoalCheck, packIndices) {
   document.getElementById('clue-text').textContent = idiom.clue;
   document.getElementById('freq-tag-learn').innerHTML = getFreqTagHTML(idiom.id);
   document.getElementById('freq-tag-review').innerHTML = '';
-  // ── 拼字选卡：生成 4 正确 + 6 干扰字卡 ──
+  // ── 拼字选卡：生成 4 答案字 + 8 干扰字卡（共 12 张；诱饵共享字不重复出卡，每题保底 1 张高价值混淆）──
   const pool = buildCardPool(idiom);
   const grid = document.getElementById('char-card-grid');
   grid.innerHTML = '';
@@ -6412,6 +6445,7 @@ function startCard(index, forceReveal, skipGoalCheck, packIndices) {
     const el = document.getElementById('gc-' + i);
     el.onclick = function(e) {
       e.stopPropagation();
+      if (window.__slotDragMoved) { window.__slotDragMoved = false; return; } // 拖拽落点产生的合成点击，吞掉
       if (!this.classList.contains('filled') || this.dataset.cardId === 'force') return;
       // 撤回：将字退回对应字卡
       const cardId = this.dataset.cardId;
@@ -6430,7 +6464,8 @@ function startCard(index, forceReveal, skipGoalCheck, packIndices) {
   }
 }
 
-function showPinyinBubble(el, py) {
+function showPinyinBubble(el, py, sticky) {
+  if (el.querySelector('.pinyin-bubble')) return; // 防重复弹出
   const bubble = document.createElement('span');
   bubble.className = 'pinyin-bubble';
   // 逐字符包裹，防止声调符号偏移
@@ -6441,6 +6476,8 @@ function showPinyinBubble(el, py) {
     bubble.appendChild(s);
   }
   el.appendChild(bubble);
+  // sticky = 常驻模式（失败教学闭环）：不自动消失，由换卡/答对时统一清除
+  if (sticky) { bubble.dataset.sticky = '1'; return; }
   // 2.5秒后自动淡出消失
   setTimeout(() => {
     bubble.style.animation = 'pinyinFade 0.3s ease forwards';
@@ -6448,46 +6485,206 @@ function showPinyinBubble(el, py) {
   }, 2500);
 }
 
+// 清除全部常驻拼音气泡（验证成功 / 换卡时调用；换卡时槽位重建也会自然销毁）
+function clearStickyPinyinBubbles() {
+  document.querySelectorAll('.pinyin-bubble[data-sticky]').forEach(b => b.remove());
+}
+
 /* ═══ 拼字选卡辅助函数（学习模式） ═══ */
 
-// 构建字卡池：4 正确 + 8 干扰字
-function buildCardPool(idiom) {
-  const correct = idiom.chars.slice();
-  const correctSet = new Set(correct);
-  const distractors = [];
-  const NEED = 8;
-  // 优先从同标签成语中取干扰字
+// 挑选混淆成语：共享字数 > 同标签（语义近）> 常用度 三重加权打分，
+// 取 Top5 再随机抽一个（保留变化，避免每题诱饵都固定）
+function pickConfusableIdiom(idiom) {
+  const own = new Set(idiom.chars);
   const tags = idiom.tags || [];
-  if (tags.length > 0) {
-    for (let i = 0; i < IDIOMS.length && distractors.length < NEED; i++) {
-      if (i === state.current) continue;
-      const other = IDIOMS[i];
-      if (!other || !other.tags) continue;
-      if (other.tags.some(t => tags.includes(t))) {
-        for (const ch of other.chars) {
-          if (!correctSet.has(ch) && !distractors.includes(ch) && ch.trim()) {
-            distractors.push(ch);
-            if (distractors.length >= NEED) break;
-          }
-        }
-      }
+  const scored = [];
+  for (let i = 0; i < IDIOMS.length; i++) {
+    if (i === state.current) continue;
+    const other = IDIOMS[i];
+    if (!other || !other.chars) continue;
+    let shared = 0;
+    for (const ch of other.chars) if (own.has(ch)) shared++;
+    if (shared < 1 || shared > 3) continue;
+    let score = shared * 100;
+    if (tags.length && other.tags && other.tags.some(t => tags.includes(t))) score += 30;
+    score += idiomFame(other);
+    scored.push([score, other]);
+  }
+  if (!scored.length) return null;
+  scored.sort(function(a, b) { return b[0] - a[0]; });
+  const top = scored.slice(0, 5);
+  return top[Math.floor(Math.random() * top.length)][1];
+}
+
+// ── 常用度/字频/拼音缓存（首次调用构建，之后复用）──
+function idiomFame(idiom) {
+  const lv = (typeof IDIOM_FREQ !== 'undefined') ? IDIOM_FREQ[idiom.id] : undefined;
+  if (lv === 'common') return 3;
+  if (lv === 'uncommon') return 2;
+  if (lv === 'rare') return 1;
+  return 0;
+}
+
+let _charFreqCache = null;
+function getCharFreq() {
+  if (_charFreqCache) return _charFreqCache;
+  const m = {};
+  for (let i = 0; i < IDIOMS.length; i++) {
+    const it = IDIOMS[i];
+    if (!it || !it.chars) continue;
+    for (const ch of it.chars) if (ch && ch.trim()) m[ch] = (m[ch] || 0) + 1;
+  }
+  _charFreqCache = m;
+  return m;
+}
+
+let _pinyinIndexCache = null;
+function getPinyinIndex() {
+  if (_pinyinIndexCache) return _pinyinIndexCache;
+  const m = {};
+  for (let i = 0; i < IDIOMS.length; i++) {
+    const it = IDIOMS[i];
+    if (!it || !it.chars || !it.pinyin) continue;
+    const syl = it.pinyin.trim().split(/\s+/);
+    for (let j = 0; j < it.chars.length && j < syl.length; j++) {
+      const ch = it.chars[j];
+      if (ch && ch.trim() && !m[ch]) m[ch] = syl[j];
     }
   }
-  // 不足时随机补充
-  if (distractors.length < NEED) {
-    for (let i = 0; i < IDIOMS.length && distractors.length < NEED; i++) {
+  _pinyinIndexCache = m;
+  return m;
+}
+
+// 去声调比较：xī/xǐ/xí 都归为 xi（同音异调也算同音）
+function pinyinBase(s) {
+  return String(s).toLowerCase()
+    .replace(/[āáǎà]/g, 'a').replace(/[ēéěè]/g, 'e').replace(/[īíǐì]/g, 'i')
+    .replace(/[ōóǒò]/g, 'o').replace(/[ūúǔù]/g, 'u').replace(/[ǖǘǚǜ]/g, 'v');
+}
+
+// 随机干扰字补足：① 最多 2 张「位置同音字」——与答案某字同音（先同声调，后同音异调），
+// 考验用户「记得读音、认错字形」；② 配额保底：一张同音都没找到时，补 1 张「高频邻字」
+// （与答案字在同一成语中共现过的字），保证每题至少 1 张高价值混淆；
+// ③ 其余按全库字频加权随机取常用字（消灭生僻送分字）
+function fillRandomDistractors(distractors, idiom, need) {
+  const taken = new Set(idiom.chars.concat(distractors));
+  // ① 位置同音字（每个答案字最多配 1 张，总上限 2 张）
+  const pyIndex = getPinyinIndex();
+  let homoAdded = 0;
+  for (let i = 0; i < idiom.chars.length && homoAdded < 2; i++) {
+    const syl = pyIndex[idiom.chars[i]];
+    if (!syl) continue;
+    const base = pinyinBase(syl);
+    let pick = null;
+    for (let pass = 0; pass < 2 && !pick; pass++) {
+      const cands = [];
+      for (const ch in pyIndex) {
+        if (taken.has(ch)) continue;
+        if (pass === 0 ? pyIndex[ch] === syl : pinyinBase(pyIndex[ch]) === base) cands.push(ch);
+      }
+      if (cands.length) pick = cands[Math.floor(Math.random() * cands.length)];
+    }
+    if (pick) { distractors.push(pick); taken.add(pick); homoAdded++; }
+  }
+  // ② 配额保底：无同音字时补 1 张高频邻字（与答案字共现过的常用字）
+  if (homoAdded === 0) {
+    const ownSet = new Set(idiom.chars);
+    const uniq = new Set();
+    for (let i = 0; i < IDIOMS.length; i++) {
       if (i === state.current) continue;
       const other = IDIOMS[i];
       if (!other || !other.chars) continue;
-      for (const ch of other.chars) {
-        if (!correctSet.has(ch) && !distractors.includes(ch) && ch.trim()) {
-          distractors.push(ch);
-          if (distractors.length >= NEED) break;
-        }
-      }
+      if (!other.chars.some(ch => ownSet.has(ch))) continue;
+      for (const ch of other.chars) if (!taken.has(ch) && !ownSet.has(ch)) uniq.add(ch);
+    }
+    if (uniq.size) {
+      const freq = getCharFreq();
+      const list = [...uniq];
+      let wSum = 0;
+      for (const ch of list) wSum += (freq[ch] || 1);
+      let r = Math.random() * wSum, pick = list[list.length - 1];
+      for (const ch of list) { r -= (freq[ch] || 1); if (r <= 0) { pick = ch; break; } }
+      distractors.push(pick);
+      taken.add(pick);
     }
   }
-  const pool = correct.concat(distractors);
+  // ③ 字频加权随机：出现次数越多的字越可能被抽中
+  const freq = getCharFreq();
+  const entries = [];
+  let wSum = 0;
+  for (const ch in freq) { entries.push([ch, freq[ch]]); wSum += freq[ch]; }
+  let guard = 0;
+  while (distractors.length < need && guard++ < 500) {
+    let r = Math.random() * wSum, ch = null;
+    for (let i = 0; i < entries.length; i++) { r -= entries[i][1]; if (r <= 0) { ch = entries[i][0]; break; } }
+    if (!ch || taken.has(ch)) continue;
+    distractors.push(ch);
+    taken.add(ch);
+  }
+  // ④ 兜底（字频池意外不足时）
+  if (distractors.length < need) {
+    const FALLBACK = '风雨山水天心日月花石云金木火土人生大小高长短';
+    for (const ch of FALLBACK) {
+      if (distractors.length >= need) break;
+      if (!taken.has(ch)) { distractors.push(ch); taken.add(ch); }
+    }
+  }
+}
+
+// 内容指纹（排序后的字符）：把答案/混淆成语的「同内容孪生条目」一并豁免，
+// 避免历史数据里同 id 重复条目导致校验永远不通过
+function idiomFingerprint(chars) {
+  return chars.slice().sort().join('');
+}
+
+// 统计 12 张字卡里除「答案 + 混淆成语」外还能完整拼出的其他成语数量（必须为 0）
+function countExtraFormableIdioms(poolChars, idiom, confusable) {
+  const counts = {};
+  for (const ch of poolChars) counts[ch] = (counts[ch] || 0) + 1;
+  const exempt = new Set([idiomFingerprint(idiom.chars)]);
+  if (confusable) exempt.add(idiomFingerprint(confusable.chars));
+  let extra = 0;
+  for (let i = 0; i < IDIOMS.length; i++) {
+    const other = IDIOMS[i];
+    if (!other || !other.chars) continue;
+    if (exempt.has(idiomFingerprint(other.chars))) continue;
+    const need = {};
+    for (const ch of other.chars) need[ch] = (need[ch] || 0) + 1;
+    let ok = true;
+    for (const ch in need) {
+      if ((counts[ch] || 0) < need[ch]) { ok = false; break; }
+    }
+    if (ok) extra++;
+  }
+  return extra;
+}
+
+// 构建字卡池：4 答案字 + 诱饵成语的独有字 + 同音/邻字混淆 + 字频加权随机字（共 12 张）
+// 诱饵与答案的共享字只保留答案那张卡、不重复出卡——两张同字等于提醒用户「答案里有这个字」，
+// 泄漏大于迷惑；诱饵仍可用答案的那张卡拼出，陷阱闭环不变
+function buildCardPool(idiom) {
+  const correct = idiom.chars.slice();
+  const correctSet = new Set(correct);
+  const confusable = pickConfusableIdiom(idiom);
+  const makeDistractors = function() {
+    const d = [];
+    if (confusable) {
+      const pushed = new Set();
+      for (const ch of confusable.chars) {
+        if (correctSet.has(ch) || pushed.has(ch)) continue; // 共享字不出重复卡，诱饵自身叠字也只出一张
+        pushed.add(ch);
+        d.push(ch);
+      }
+    }
+    fillRandomDistractors(d, idiom, 8);
+    return d;
+  };
+  let pool = null;
+  for (let attempt = 0; attempt < 40 && !pool; attempt++) {
+    const cand = correct.concat(makeDistractors());
+    if (countExtraFormableIdioms(cand, idiom, confusable) === 0) pool = cand;
+  }
+  if (!pool) pool = correct.concat(makeDistractors()); // 40 次全撞车（概率极低）时放宽
   // Fisher-Yates 洗牌
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -6498,6 +6695,7 @@ function buildCardPool(idiom) {
 
 // 字卡点击处理：填入下一个空槽位
 function onCardTap(cardIdx, ch) {
+  if (window.__slotDragMoved) { window.__slotDragMoved = false; return; } // 拖拽落点产生的合成点击，吞掉
   const grid = document.getElementById('char-card-grid');
   const card = document.getElementById('cc-' + cardIdx);
   if (!grid || !card || card.classList.contains('used')) return;
@@ -6537,6 +6735,23 @@ function updateLearnBtnState() {
   }
 }
 
+// ── 失败教学闭环：同一题连续失败 2 次后，四个槽位上方常驻显示对应拼音 ──
+// 计数按「模式+题」记（L=学习 / R=复习），成功或换卡即重置；气泡为 sticky 常驻
+const _failStreak = {};
+function bumpFailStreak(key) {
+  _failStreak[key] = (_failStreak[key] || 0) + 1;
+  return _failStreak[key] >= 2;
+}
+function resetFailStreak(key) { delete _failStreak[key]; clearStickyPinyinBubbles(); }
+function showFailPinyin(idiom) {
+  if (!idiom || !idiom.chars) return;
+  const pyArr = String(idiom.pinyin || '').trim().split(/\s+/);
+  for (let i = 0; i < 4; i++) {
+    const el = document.getElementById('gc-' + i);
+    if (el) showPinyinBubble(el, pyArr[i] || '', true);
+  }
+}
+
 function handleCheck() {
   if (reviewState.isActive) checkReviewGuess(); else checkGuess();
 }
@@ -6553,6 +6768,7 @@ function checkGuess() {
       playCorrectSound();
       vibrateConfirm();
       SFX.stamp();
+      resetFailStreak('L' + state.current);
       idiom.chars.forEach((_, i) => {
         const el = document.getElementById('gc-' + i);
         el.classList.add('correct');
@@ -6566,12 +6782,16 @@ function checkGuess() {
       setTimeout(() => showDetail(state.current), 800);
     } else {
       playFailSound();
+      spendYueliPenalty(2);
+      showYueliToast('验证失败，-2 成知');
       let anyRight = false;
       idiom.chars.forEach((c, i) => {
         const el = document.getElementById('gc-' + i);
         if (slots[i] === c) { el.classList.add('correct'); anyRight = true; }
         else { el.classList.add('wrong'); setTimeout(() => el.classList.remove('wrong'), 600); }
       });
+      // 失败教学闭环：同题连败 2 次后，槽位上方常驻拼音
+      if (bumpFailStreak('L' + state.current)) showFailPinyin(idiom);
     }
     return;
   }
@@ -6582,6 +6802,7 @@ function checkGuess() {
     playCorrectSound();
     vibrateConfirm();
     SFX.stamp(); // 答对
+    resetFailStreak('L' + state.current);
     idiom.chars.forEach((_, i) => {
       const el = document.getElementById('gc-' + i);
       el.classList.remove('hidden'); el.classList.add('revealed', 'correct');
@@ -6595,12 +6816,16 @@ function checkGuess() {
     setTimeout(() => showDetail(state.current), 800);
   } else {
     playFailSound();
+    spendYueliPenalty(2);
+    showYueliToast('验证失败，-2 成知');
     let anyRight = false;
     idiom.chars.forEach((c, i) => {
       const el = document.getElementById('gc-' + i);
       if (val[i] === c) { el.classList.remove('hidden'); el.classList.add('revealed', 'correct'); anyRight = true; }
       else if (!el.classList.contains('correct')) { el.classList.add('wrong'); setTimeout(() => el.classList.remove('wrong'), 600); }
     });
+    // 失败教学闭环：同题连败 2 次后，槽位上方常驻拼音
+    if (bumpFailStreak('L' + state.current)) showFailPinyin(idiom);
   }
 }
 
@@ -7273,9 +7498,9 @@ function renderEbbPreview(){
     }
 
     if (card) {
-      if (isVerified(card)) { snapBack(); return; }
+      if (isVerified(card) || card.classList.contains('used')) { snapBack(); return; } // 已揭示/已放入槽位的卡不再查证
 
-      var ok = spendYueli(2);
+      var ok = spendYueli(1);
       if (!ok) {
         snapBack(); // 先回弹（与正常查证一致），再提示
         showFeedback('成知不足，无法查验', 'error');
@@ -7406,17 +7631,36 @@ function renderEbbPreview(){
 
       // 揭示按钮：delegate 到 document，通过 .btn-hint 类匹配
       // 统一行为：先检查有无可提示字卡，有才扣 3 成知，随机正确字卡变绿（学习/复习模式一致）
+      // 字频记账：每个字最多揭示「答案需要的张数」——已填入槽位的卡、已揭示变绿的卡都算消耗，
+      // 避免池中有重复字卡（混淆成语共享字）时把同一个字重复揭示多张
       document.addEventListener('click', function(e) {
         var btn = e.target.closest('.btn-hint');
         if (!btn) return;
         var idiom = IDIOMS[state.current];
         if (!idiom) return;
-        var answerChars = {};
-        idiom.chars.forEach(function(c) { answerChars[c] = true; });
+        var need = {};
+        idiom.chars.forEach(function(c) { need[c] = (need[c] || 0) + 1; });
+        var used = {};
+        getCharCards().forEach(function(c) {
+          if (c.classList.contains('used') || c.classList.contains('cv-hinted')) {
+            var ch = c.textContent.trim();
+            used[ch] = (used[ch] || 0) + 1;
+          }
+        });
+        // 揭示槽（cardId=hint）没有对应字卡被消耗，单独补计，防止重复揭示
+        var gridEl = document.getElementById('char-card-grid');
+        if (gridEl && gridEl.classList.contains('active')) {
+          JSON.parse(gridEl.dataset.slots || '[]').forEach(function(s, si) {
+            if (!s) return;
+            var slotEl = document.getElementById('gc-' + si);
+            if (slotEl && slotEl.dataset.cardId === 'hint') used[s] = (used[s] || 0) + 1;
+          });
+        }
         var candidates = [];
         getCharCards().forEach(function(c) {
           var ch = c.textContent.trim();
-          if (!isVerified(c) && answerChars[ch]) candidates.push(c);
+          if (c.classList.contains('used') || c.classList.contains('cv-hinted') || c.classList.contains('cv-excluded')) return;
+          if ((need[ch] || 0) - (used[ch] || 0) > 0) candidates.push(c);
         });
         if (candidates.length === 0) {
           showYueliToast('没有可以提示的字卡了');
@@ -7467,13 +7711,140 @@ function renderEbbPreview(){
   }
 
   // ── 页面初始化（等待成语数据就绪）──
+  /* ── 槽位字卡拖拽排序：仅限四个已填槽位之间自由拖拽换位/挪位 ──
+     单击（位移 < 8px）仍走原逻辑（撤回）；force/已判定的槽位锁定不可拖；
+     事件委托挂在 document 上，两套答题卡模板通用，无需重新绑定 */
+  var _slotDragBound = false;
+  var _slotDrag = null; // {el, x0, y0, started, ghost, target}
+  var _slotDragThresh = 8;
+
+  function slotDragSlots() {
+    var arr = [];
+    for (var i = 0; i < 4; i++) arr.push(document.getElementById('gc-' + i));
+    return arr;
+  }
+  function slotDragLocked(el) {
+    return !el || el.dataset.cardId === 'force' || el.classList.contains('correct');
+  }
+  function slotDragBeginVisual(x, y) {
+    var d = _slotDrag;
+    var r = d.el.getBoundingClientRect();
+    var ghost = d.el.cloneNode(true);
+    ghost.id = '';
+    ghost.style.cssText += ';position:fixed;left:' + r.left + 'px;top:' + r.top + 'px;width:' + r.width + 'px;height:' + r.height + 'px;margin:0;z-index:9999;pointer-events:none;box-shadow:0 6px 16px rgba(0,0,0,0.25);opacity:0.96;transform:none;';
+    document.body.appendChild(ghost);
+    d.ghost = ghost;
+    d.el.classList.add('drag-lift');
+    d.ox = x - r.left;
+    d.oy = y - r.top;
+  }
+  function slotDragMove(x, y) {
+    var d = _slotDrag;
+    if (!d || !d.started) return;
+    d.ghost.style.left = (x - d.ox) + 'px';
+    d.ghost.style.top = (y - d.oy) + 'px';
+    var hit = null;
+    slotDragSlots().forEach(function(s) {
+      if (!s || s === d.el) return;
+      var r = s.getBoundingClientRect();
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) hit = s;
+    });
+    if (d.target && d.target !== hit) d.target.classList.remove('drop-hint');
+    if (hit && !slotDragLocked(hit)) hit.classList.add('drop-hint');
+    d.target = hit;
+  }
+  function slotDragFinish(x, y) {
+    var d = _slotDrag;
+    if (!d) return;
+    if (d.started) slotDragMove(x, y); // 抬手前最后一次校正落点（_slotDrag 须仍有效）
+    _slotDrag = null;
+    if (d.target) d.target.classList.remove('drop-hint');
+    if (!d.started) return; // 位移不足阈值：当作单击，走原 onclick
+    d.el.classList.remove('drag-lift');
+    if (d.ghost) d.ghost.remove();
+    var t = d.target;
+    window.__slotDragMoved = true; // 吞掉后续合成点击
+    setTimeout(function() { window.__slotDragMoved = false; }, 350);
+    if (!t || slotDragLocked(t)) return; // 无有效落点：回弹
+    var s = d.el;
+    var grid = document.getElementById('char-card-grid');
+    if (!grid) return;
+    var slots = JSON.parse(grid.dataset.slots || '[]');
+    var si = parseInt(s.dataset.idx, 10), ti = parseInt(t.dataset.idx, 10);
+    if (isNaN(si) || isNaN(ti) || si === ti) return;
+    // 交换（或挪入空槽）：字值与字卡引用整体互换，撤回逻辑不受影响
+    var tmp = slots[si]; slots[si] = slots[ti]; slots[ti] = tmp;
+    var sCh = t.textContent, sChar = t.dataset.char, sCard = t.dataset.cardId;
+    var tCh = s.textContent, tChar = s.dataset.char, tCard = s.dataset.cardId;
+    s.textContent = sCh; t.textContent = tCh;
+    if (sCh) { s.classList.add('filled'); s.dataset.char = sChar; s.dataset.cardId = sCard; }
+    else { s.classList.remove('filled'); delete s.dataset.char; delete s.dataset.cardId; }
+    if (tCh) { t.classList.add('filled'); t.dataset.char = tChar; t.dataset.cardId = tCard; }
+    else { t.classList.remove('filled'); delete t.dataset.char; delete t.dataset.cardId; }
+    grid.dataset.slots = JSON.stringify(slots);
+    updateLearnBtnState();
+  }
+  function slotDragDown(x, y, target) {
+    if (_slotDrag) return;
+    var el = target && target.closest ? target.closest('.guess-char.slot') : null;
+    if (!el || !el.classList.contains('filled') || slotDragLocked(el)) return;
+    _slotDrag = { el: el, x0: x, y0: y, started: false, ghost: null, target: null, ox: 0, oy: 0 };
+  }
+  function slotDragShouldStart(x, y) {
+    if (!_slotDrag) return false;
+    return Math.abs(x - _slotDrag.x0) >= _slotDragThresh || Math.abs(y - _slotDrag.y0) >= _slotDragThresh;
+  }
+  function initSlotDrag() {
+    if (_slotDragBound) return;
+    _slotDragBound = true;
+    document.addEventListener('touchstart', function(e) {
+      var t = e.touches[0];
+      slotDragDown(t.clientX, t.clientY, e.target);
+    }, { passive: true });
+    document.addEventListener('touchmove', function(e) {
+      if (!_slotDrag) return;
+      var t = e.touches[0];
+      if (!_slotDrag.started) {
+        if (!slotDragShouldStart(t.clientX, t.clientY)) return;
+        _slotDrag.started = true;
+        slotDragBeginVisual(t.clientX, t.clientY);
+      }
+      e.preventDefault();
+      slotDragMove(t.clientX, t.clientY);
+    }, { passive: false });
+    document.addEventListener('touchend', function(e) {
+      if (!_slotDrag) return;
+      var t = e.changedTouches[0];
+      slotDragFinish(t.clientX, t.clientY);
+    }, { passive: true });
+    document.addEventListener('mousedown', function(e) {
+      slotDragDown(e.clientX, e.clientY, e.target);
+    });
+    document.addEventListener('mousemove', function(e) {
+      if (!_slotDrag) return;
+      if (!_slotDrag.started) {
+        if (!slotDragShouldStart(e.clientX, e.clientY)) return;
+        _slotDrag.started = true;
+        slotDragBeginVisual(e.clientX, e.clientY);
+      }
+      e.preventDefault();
+      slotDragMove(e.clientX, e.clientY);
+    });
+    document.addEventListener('mouseup', function(e) {
+      if (!_slotDrag) return;
+      slotDragFinish(e.clientX, e.clientY);
+    });
+  }
+
   function doInit() {
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', init);
     } else {
       init();
     }
+    initSlotDrag();
     window._initMagnifierDrag = init;
+    window._initSlotDrag = initSlotDrag;
   }
   if (window._dataReady) { doInit(); }
   else { document.addEventListener('chengyu-data-ready', doInit, { once: true }); }
